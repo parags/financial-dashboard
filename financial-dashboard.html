@@ -538,14 +538,14 @@ const indicesBase = [
   {id:'asx', name:'ASX 200', flag:'🇦🇺', price:8198.30, change:0.29},
 ];
 const currBase = [
-  {id:'eurusd', name:'EUR/USD', flag:'🇪🇺', price:1.0542, change:0.12},
-  {id:'gbpusd', name:'GBP/USD', flag:'🇬🇧', price:1.2618, change:-0.08},
-  {id:'usdjpy', name:'USD/JPY', flag:'🇯🇵', price:154.82, change:0.23},
-  {id:'usdchf', name:'USD/CHF', flag:'🇨🇭', price:0.8865, change:0.05},
-  {id:'usdinr', name:'USD/INR', flag:'🇮🇳', price:84.38, change:0.03},
-  {id:'usdcny', name:'USD/CNY', flag:'🇨🇳', price:7.2485, change:-0.11},
-  {id:'audusd', name:'AUD/USD', flag:'🇦🇺', price:0.6512, change:-0.22},
-  {id:'usdcad', name:'USD/CAD', flag:'🇨🇦', price:1.3984, change:0.14},
+  {id:'eurusd', name:'EUR/USD', flag:'🇪🇺', price:1.0380, change:0.12, invert:'EUR'},
+  {id:'gbpusd', name:'GBP/USD', flag:'🇬🇧', price:1.2435, change:-0.08, invert:'GBP'},
+  {id:'usdjpy', name:'USD/JPY', flag:'🇯🇵', price:153.32, change:0.23, apiKey:'JPY'},
+  {id:'usdchf', name:'USD/CHF', flag:'🇨🇭', price:0.9042, change:0.05, apiKey:'CHF'},
+  {id:'usdinr', name:'USD/INR', flag:'🇮🇳', price:86.70, change:0.03, apiKey:'INR'},
+  {id:'usdcny', name:'USD/CNY', flag:'🇨🇳', price:7.2850, change:-0.11, apiKey:'CNY'},
+  {id:'audusd', name:'AUD/USD', flag:'🇦🇺', price:0.6285, change:-0.22, invert:'AUD'},
+  {id:'usdcad', name:'USD/CAD', flag:'🇨🇦', price:1.4312, change:0.14, apiKey:'CAD'},
 ];
 const commBase = [
   {id:'gold', name:'Gold', flag:'🥇', price:2652.40, change:0.38},
@@ -769,17 +769,36 @@ async function fetchFearGreed() {
 const REFRESH_INTERVAL = 30; // seconds
 let refreshCounter = 0;
 
+async function fetchForexRates() {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    const data = await res.json();
+    if (data.rates) {
+      liveCurr.forEach(c => {
+        if (c.invert && data.rates[c.invert]) {
+          const newPrice = +(1 / data.rates[c.invert]).toFixed(4);
+          c.change = +((newPrice - c.price) / c.price * 100).toFixed(2);
+          c.price = newPrice;
+        } else if (c.apiKey && data.rates[c.apiKey]) {
+          const newPrice = +(data.rates[c.apiKey]).toFixed(c.apiKey === 'INR' || c.apiKey === 'JPY' ? 2 : 4);
+          c.change = +((newPrice - c.price) / c.price * 100).toFixed(2);
+          c.price = newPrice;
+        }
+      });
+    }
+  } catch(e) { console.warn('Forex API fallback to simulation', e); }
+}
+
 async function fullUpdate() {
   // Simulate ticks on non-API data
   simulateTick(liveIndices, 0.06);
-  simulateTick(liveCurr, 0.02);
   simulateTick(liveComm, 0.08);
   simulateTick(liveBonds, 0.01);
   vixValue = Math.max(9, Math.min(45, rand(vixValue, 0.3)));
   fgIndex = Math.max(5, Math.min(95, drift(fgIndex, 0.5)));
 
-  // Fetch live data
-  await Promise.all([fetchCrypto(), fetchFearGreed()]);
+  // Fetch live data (forex, crypto, fear&greed)
+  await Promise.all([fetchForexRates(), fetchCrypto(), fetchFearGreed()]);
 
   // Render all
   renderSection('indices', liveIndices);

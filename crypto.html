@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cryptocurrency — GlobalPulse</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary: #0a0e17; --bg-secondary: #111827; --bg-card: #1a1f2e; --border: #2a3045;
+  --text-primary: #e2e8f0; --text-secondary: #94a3b8; --text-muted: #64748b;
+  --green: #22c55e; --green-bg: rgba(34,197,94,0.1); --red: #ef4444; --red-bg: rgba(239,68,68,0.1);
+  --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.1); --yellow: #eab308; --purple: #a855f7;
+  --cyan: #06b6d4; --orange: #f97316;
+  --gradient-card: linear-gradient(135deg, #1a1f2e 0%, #151a28 100%);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.3);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg-primary); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.page-header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--blue), var(--purple)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+.logo h1 { font-size: 22px; font-weight: 700; } .logo h1 span { color: var(--blue); }
+.breadcrumb { font-size: 13px; color: var(--text-muted); margin-top: 6px; } .breadcrumb a { color: var(--blue); text-decoration: none; } .breadcrumb a:hover { text-decoration: underline; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--blue); text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 8px; background: var(--blue-bg); transition: background 0.2s; } .back-link:hover { background: rgba(59,130,246,0.2); }
+.container { max-width: 1800px; margin: 0 auto; padding: 20px; }
+.section-title { font-size: 18px; font-weight: 700; margin: 30px 0 16px; display: flex; align-items: center; gap: 10px; }
+.card { background: var(--gradient-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: var(--shadow-card); transition: transform 0.2s, border-color 0.3s; position: relative; overflow: hidden; }
+.card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--blue), var(--purple)); opacity: 0; transition: opacity 0.3s; }
+.card:hover::before { opacity: 1; } .card:hover { border-color: rgba(59,130,246,0.3); }
+.card-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.crypto-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+.crypto-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.crypto-name { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.crypto-symbol { font-size: 12px; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; }
+.crypto-price { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.crypto-change { font-size: 14px; font-weight: 600; padding: 4px 10px; border-radius: 8px; }
+.crypto-change.up { color: var(--green); background: var(--green-bg); }
+.crypto-change.down { color: var(--red); background: var(--red-bg); }
+.crypto-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+.meta-item { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 8px 12px; }
+.meta-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.meta-value { font-size: 13px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.chart-container { position: relative; height: 160px; }
+.toggle-btn { display: inline-flex; gap: 0; margin-bottom: 8px; }
+.toggle-btn button { padding: 4px 12px; font-size: 11px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+.toggle-btn button:first-child { border-radius: 6px 0 0 6px; }
+.toggle-btn button:last-child { border-radius: 0 6px 6px 0; }
+.toggle-btn button.active { background: var(--blue); color: white; border-color: var(--blue); }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 30px; }
+.summary-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+.summary-card .sv { font-size: 24px; font-weight: 700; }
+.summary-card .sl { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.dominance-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+.pie-container { position: relative; height: 300px; }
+.movers-table { width: 100%; border-collapse: separate; border-spacing: 0 4px; font-size: 13px; }
+.movers-table th { text-align: left; padding: 8px 12px; color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+.movers-table td { padding: 10px 12px; background: rgba(255,255,255,0.02); font-variant-numeric: tabular-nums; }
+.movers-table tr td:first-child { border-radius: 8px 0 0 8px; font-weight: 600; }
+.movers-table tr td:last-child { border-radius: 0 8px 8px 0; }
+@keyframes fadeInUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+.card { animation: fadeInUp 0.4s ease-out both; }
+@media (max-width: 860px) { .crypto-grid { grid-template-columns: 1fr; } .dominance-container { grid-template-columns: 1fr; } .container { padding: 12px; } }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <div class="logo"><div class="logo-icon">G</div><h1>Global<span>Pulse</span></h1></div>
+    <div class="breadcrumb"><a href="index.html">Dashboard</a> &rsaquo; Cryptocurrency</div>
+  </div>
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+</div>
+
+<div class="container">
+  <!-- Market Summary -->
+  <div class="summary-grid" id="summary"></div>
+
+  <!-- Crypto Cards -->
+  <div class="section-title">₿ All Cryptocurrencies</div>
+  <div class="crypto-grid" id="cryptoCards"></div>
+
+  <!-- Dominance + Top Movers -->
+  <div class="dominance-container" style="margin-top:30px;">
+    <div class="card">
+      <div class="card-title">🥧 Market Dominance</div>
+      <div class="pie-container"><canvas id="dominanceChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🚀 Top Movers (24h)</div>
+      <table class="movers-table" id="moversTable"></table>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt = (n,d=2) => Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtPct = n => (n>=0?'+':'')+fmt(n)+'%';
+const fmtBig = n => { if(n>=1e12) return '$'+fmt(n/1e12,1)+'T'; if(n>=1e9) return '$'+fmt(n/1e9,1)+'B'; if(n>=1e6) return '$'+fmt(n/1e6,1)+'M'; return '$'+fmt(n); };
+
+const cryptos = [
+  {id:'bitcoin',symbol:'BTC',name:'Bitcoin',icon:'₿',price:97420,change:2.15,mcap:1.92e12,vol24h:48.5e9,supply:'19.6M',ath:99800,color:'#f7931a'},
+  {id:'ethereum',symbol:'ETH',name:'Ethereum',icon:'Ξ',price:3642,change:1.82,mcap:438e9,vol24h:22.1e9,supply:'120.4M',ath:4878,color:'#627eea'},
+  {id:'binancecoin',symbol:'BNB',name:'BNB',icon:'◆',price:642.8,change:0.65,mcap:96.2e9,vol24h:1.8e9,supply:'149.5M',ath:720,color:'#f3ba2f'},
+  {id:'solana',symbol:'SOL',name:'Solana',icon:'◎',price:242.5,change:3.45,mcap:112e9,vol24h:5.4e9,supply:'441M',ath:264,color:'#9945ff'},
+  {id:'ripple',symbol:'XRP',name:'XRP',icon:'✕',price:2.38,change:5.21,mcap:136e9,vol24h:12.8e9,supply:'57.2B',ath:3.40,color:'#00aae4'},
+  {id:'dogecoin',symbol:'DOGE',name:'Dogecoin',icon:'🐕',price:0.412,change:1.92,mcap:60.5e9,vol24h:3.8e9,supply:'147B',ath:0.731,color:'#c2a633'},
+  {id:'cardano',symbol:'ADA',name:'Cardano',icon:'◈',price:1.08,change:-0.85,mcap:38.2e9,vol24h:1.2e9,supply:'35.4B',ath:3.09,color:'#0033ad'},
+  {id:'avalanche-2',symbol:'AVAX',name:'Avalanche',icon:'▲',price:45.80,change:2.18,mcap:18.6e9,vol24h:820e6,supply:'405M',ath:146.22,color:'#e84142'},
+  {id:'polkadot',symbol:'DOT',name:'Polkadot',icon:'●',price:9.42,change:-1.24,mcap:13.8e9,vol24h:580e6,supply:'1.46B',ath:54.98,color:'#e6007a'},
+  {id:'matic-network',symbol:'MATIC',name:'Polygon',icon:'⬡',price:0.628,change:0.42,mcap:6.2e9,vol24h:420e6,supply:'10B',ath:2.92,color:'#8247e5'},
+];
+
+function genHistory(base, days=30, vol=2) {
+  const d=[]; let p=base*(1-vol/100*10);
+  for(let i=0;i<days;i++) { p=p*(1+(Math.random()-0.47)*vol/100); d.push(p); }
+  return d;
+}
+function genLabels(n=30) {
+  const l=[]; for(let i=n;i>0;i--) { const d=new Date(); d.setDate(d.getDate()-i); l.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'})); } return l;
+}
+
+// Try to fetch live data from CoinGecko
+async function fetchLiveData() {
+  try {
+    const ids = cryptos.map(c=>c.id).join(',');
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`);
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    cryptos.forEach(c => {
+      if (data[c.id]) {
+        c.price = data[c.id].usd || c.price;
+        c.change = data[c.id].usd_24h_change || c.change;
+        c.mcap = data[c.id].usd_market_cap || c.mcap;
+        c.vol24h = data[c.id].usd_24h_vol || c.vol24h;
+      }
+    });
+  } catch(e) { /* use defaults */ }
+}
+
+function renderSummary() {
+  const totalMcap = cryptos.reduce((s,c)=>s+c.mcap,0);
+  const totalVol = cryptos.reduce((s,c)=>s+c.vol24h,0);
+  const btcDom = (cryptos[0].mcap/totalMcap*100).toFixed(1);
+  document.getElementById('summary').innerHTML = `
+    <div class="summary-card"><div class="sv" style="color:var(--blue)">${fmtBig(totalMcap)}</div><div class="sl">Total Market Cap</div></div>
+    <div class="summary-card"><div class="sv" style="color:var(--purple)">${fmtBig(totalVol)}</div><div class="sl">24h Volume</div></div>
+    <div class="summary-card"><div class="sv" style="color:var(--orange)">${btcDom}%</div><div class="sl">BTC Dominance</div></div>
+    <div class="summary-card"><div class="sv" style="color:var(--green)">${cryptos.length}</div><div class="sl">Tracked Assets</div></div>
+  `;
+}
+
+function renderCards() {
+  const grid = document.getElementById('cryptoCards');
+  grid.innerHTML = '';
+  cryptos.forEach((c, idx) => {
+    const dir = c.change >= 0 ? 'up' : 'down';
+    const color = c.change >= 0 ? '#22c55e' : '#ef4444';
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.animationDelay = (idx * 0.05) + 's';
+    const priceStr = c.price >= 1 ? '$'+fmt(c.price) : '$'+fmt(c.price,4);
+    card.innerHTML = `
+      <div class="crypto-top">
+        <div>
+          <div class="crypto-name">${c.icon} ${c.name} <span class="crypto-symbol">${c.symbol}</span></div>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-top:8px;">
+            <div class="crypto-price">${priceStr}</div>
+            <span class="crypto-change ${dir}">${fmtPct(c.change)}</span>
+          </div>
+        </div>
+        <div style="width:12px;height:12px;border-radius:50%;background:${c.color};"></div>
+      </div>
+      <div class="crypto-meta">
+        <div class="meta-item"><div class="meta-label">Market Cap</div><div class="meta-value">${fmtBig(c.mcap)}</div></div>
+        <div class="meta-item"><div class="meta-label">24h Volume</div><div class="meta-value">${fmtBig(c.vol24h)}</div></div>
+        <div class="meta-item"><div class="meta-label">Circulating Supply</div><div class="meta-value">${c.supply}</div></div>
+        <div class="meta-item"><div class="meta-label">ATH</div><div class="meta-value">$${fmt(c.ath)}</div></div>
+      </div>
+      <div class="toggle-btn">
+        <button class="active" onclick="switchPeriod(this,'${c.id}',7)">7D</button>
+        <button onclick="switchPeriod(this,'${c.id}',30)">30D</button>
+      </div>
+      <div class="chart-container"><canvas id="chart-${c.id}"></canvas></div>
+    `;
+    grid.appendChild(card);
+
+    const history = genHistory(c.price, 30, c.symbol === 'BTC' ? 3 : 5);
+    window['data_'+c.id] = { full: history, labels30: genLabels(30), labels7: genLabels(7) };
+    drawChart(c.id, history.slice(-7), genLabels(7), c.color);
+  });
+}
+
+function drawChart(id, data, labels, color) {
+  const canvas = document.getElementById('chart-'+id);
+  if (!canvas) return;
+  if (window['chartInst_'+id]) window['chartInst_'+id].destroy();
+  window['chartInst_'+id] = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets: [{
+      data, borderColor: color, backgroundColor: color+'18', fill: true, tension: 0.4,
+      pointRadius: 0, pointHoverRadius: 4, borderWidth: 2,
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { backgroundColor:'#1a1f2e', borderColor:'#2a3045', borderWidth:1 }},
+      scales: {
+        x: { ticks: { color:'#64748b', maxTicksLimit:6, font:{size:10} }, grid: { color:'rgba(255,255,255,0.03)' }},
+        y: { ticks: { color:'#64748b', font:{size:10} }, grid: { color:'rgba(255,255,255,0.03)' }}
+      },
+      interaction: { intersect: false, mode: 'index' }
+    }
+  });
+}
+
+window.switchPeriod = function(btn, id, days) {
+  btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const d = window['data_'+id];
+  const c = cryptos.find(x=>x.id===id);
+  if (days === 7) drawChart(id, d.full.slice(-7), d.labels7, c.color);
+  else drawChart(id, d.full, d.labels30, c.color);
+};
+
+function renderDominance() {
+  const totalMcap = cryptos.reduce((s,c)=>s+c.mcap,0);
+  const top6 = cryptos.slice(0,6);
+  const otherMcap = totalMcap - top6.reduce((s,c)=>s+c.mcap,0);
+  new Chart(document.getElementById('dominanceChart'), {
+    type: 'doughnut',
+    data: {
+      labels: [...top6.map(c=>c.symbol), 'Others'],
+      datasets: [{ data: [...top6.map(c=>(c.mcap/totalMcap*100).toFixed(1)), (otherMcap/totalMcap*100).toFixed(1)],
+        backgroundColor: [...top6.map(c=>c.color), '#4a5568'], borderColor: '#0a0e17', borderWidth: 2 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color: '#94a3b8', padding: 12, font: { size: 12 } } },
+        tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.raw + '%' } }
+      }
+    }
+  });
+}
+
+function renderMovers() {
+  const sorted = [...cryptos].sort((a,b)=>Math.abs(b.change)-Math.abs(a.change));
+  document.getElementById('moversTable').innerHTML = `
+    <thead><tr><th>Coin</th><th>Price</th><th>24h Change</th><th>Volume</th></tr></thead>
+    <tbody>${sorted.map(c => {
+      const cls = c.change>=0?'color:var(--green)':'color:var(--red)';
+      return `<tr><td>${c.icon} ${c.symbol}</td><td>$${c.price>=1?fmt(c.price):fmt(c.price,4)}</td><td style="${cls}">${fmtPct(c.change)}</td><td>${fmtBig(c.vol24h)}</td></tr>`;
+    }).join('')}</tbody>
+  `;
+}
+
+(async function init() {
+  await fetchLiveData();
+  renderSummary();
+  renderCards();
+  renderDominance();
+  renderMovers();
+})();
+</script>
+</body>
+</html>
