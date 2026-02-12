@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Economic Indicators — GlobalPulse</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary:#0a0e17;--bg-secondary:#111827;--bg-card:#1a1f2e;--border:#2a3045;
+  --text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;
+  --green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--yellow:#eab308;--purple:#a855f7;--cyan:#06b6d4;--orange:#f97316;
+  --gradient-card:linear-gradient(135deg,#1a1f2e 0%,#151a28 100%);--shadow-card:0 4px 24px rgba(0,0,0,0.3);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg-primary)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.page-header{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:20px 30px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+.logo h1{font-size:22px;font-weight:700}.logo h1 span{color:var(--blue)}
+.breadcrumb{font-size:13px;color:var(--text-muted);margin-top:6px}.breadcrumb a{color:var(--blue);text-decoration:none}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--blue);text-decoration:none;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;background:var(--blue-bg)}
+.container{max-width:1800px;margin:0 auto;padding:20px}
+.section-title{font-size:18px;font-weight:700;margin:30px 0 16px;display:flex;align-items:center;gap:10px}
+.card{background:var(--gradient-card);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow-card);position:relative;overflow:hidden;transition:border-color 0.3s}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--purple));opacity:0;transition:opacity 0.3s}
+.card:hover::before{opacity:1}.card:hover{border-color:rgba(59,130,246,0.3)}
+.card-title{font-size:14px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+.chart-container{position:relative;height:250px}
+
+/* Tabs */
+.tab-bar{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
+.tab-btn{padding:8px 20px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.tab-btn:hover{border-color:var(--blue);color:var(--text-secondary)}
+.tab-btn.active{background:var(--blue);border-color:var(--blue);color:white}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* Stat grid */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.stat-item{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.stat-item .sv{font-size:22px;font-weight:700}
+.stat-item .sl{font-size:11px;color:var(--text-muted);margin-top:4px;text-transform:uppercase}
+.stat-item .sc{font-size:12px;font-weight:600;margin-top:4px}
+
+.econ-table{width:100%;border-collapse:separate;border-spacing:0 4px;font-size:13px}
+.econ-table th{text-align:left;padding:8px 12px;color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase}
+.econ-table td{padding:10px 12px;background:rgba(255,255,255,0.02);font-variant-numeric:tabular-nums}
+.econ-table tr td:first-child{border-radius:8px 0 0 8px;font-weight:600}
+.econ-table tr td:last-child{border-radius:0 8px 8px 0}
+
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.card{animation:fadeInUp 0.4s ease-out both}
+@media(max-width:860px){.grid-2,.grid-3{grid-template-columns:1fr}.container{padding:12px}.tab-btn{padding:6px 12px;font-size:12px}}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div>
+    <div class="logo"><div class="logo-icon">G</div><h1>Global<span>Pulse</span></h1></div>
+    <div class="breadcrumb"><a href="index.html">Dashboard</a> &rsaquo; Economic Indicators</div>
+  </div>
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+</div>
+
+<div class="container">
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('us')">🇺🇸 United States</button>
+    <button class="tab-btn" onclick="showTab('india')">🇮🇳 India</button>
+    <button class="tab-btn" onclick="showTab('eu')">🇪🇺 Euro Area</button>
+    <button class="tab-btn" onclick="showTab('china')">🇨🇳 China</button>
+    <button class="tab-btn" onclick="showTab('japan')">🇯🇵 Japan</button>
+    <button class="tab-btn" onclick="showTab('uk')">🇬🇧 United Kingdom</button>
+  </div>
+
+  <!-- US -->
+  <div class="tab-content active" id="tab-us">
+    <div class="stat-grid">
+      <div class="stat-item"><div class="sv" style="color:var(--green)">2.8%</div><div class="sl">GDP Growth (Q3)</div><div class="sc" style="color:var(--green)">▲ Above consensus</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--orange)">3.2%</div><div class="sl">CPI Inflation</div><div class="sc" style="color:var(--red)">Above 2% target</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--green)">3.9%</div><div class="sl">Unemployment</div><div class="sc" style="color:var(--yellow)">Slightly rising</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--blue)">5.50%</div><div class="sl">Fed Funds Rate</div><div class="sc">Restrictive stance</div></div>
+      <div class="stat-item"><div class="sv">227K</div><div class="sl">Nonfarm Payrolls</div><div class="sc" style="color:var(--green)">Above estimate</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--red)">123%</div><div class="sl">Debt to GDP</div><div class="sc">$34.1 trillion</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">GDP Growth (Quarterly)</div>
+        <div class="chart-container"><canvas id="usGdpChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Inflation (CPI & Core CPI)</div>
+        <div class="chart-container"><canvas id="usCpiChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Unemployment Rate</div>
+        <div class="chart-container"><canvas id="usUnempChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Housing Data</div>
+        <div class="chart-container"><canvas id="usHousingChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- India -->
+  <div class="tab-content" id="tab-india">
+    <div class="stat-grid">
+      <div class="stat-item"><div class="sv" style="color:var(--green)">7.6%</div><div class="sl">GDP Growth (Q3)</div><div class="sc" style="color:var(--green)">Fastest major economy</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--orange)">5.1%</div><div class="sl">CPI Inflation</div><div class="sc" style="color:var(--yellow)">Within RBI band</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--red)">7.2%</div><div class="sl">Unemployment</div><div class="sc">CMIE estimate</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--blue)">6.50%</div><div class="sl">RBI Repo Rate</div><div class="sc">Unchanged since Feb 23</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--green)">5.8%</div><div class="sl">IIP Growth</div><div class="sc" style="color:var(--green)">Manufacturing led</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--red)">83%</div><div class="sl">Debt to GDP</div><div class="sc">Fiscal consolidation</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">India GDP Growth (Quarterly)</div>
+        <div class="chart-container"><canvas id="inGdpChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">WPI vs CPI Inflation</div>
+        <div class="chart-container"><canvas id="inInflChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">IIP (Industrial Production)</div>
+        <div class="chart-container"><canvas id="inIipChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">FII / DII Flows (₹ Crore)</div>
+        <div class="chart-container"><canvas id="inFlowsChart"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title">India Economic Data</div>
+      <table class="econ-table">
+        <thead><tr><th>Indicator</th><th>Latest</th><th>Previous</th><th>Trend</th></tr></thead>
+        <tbody>
+          <tr><td>Repo Rate</td><td>6.50%</td><td>6.50%</td><td style="color:var(--yellow)">→ Unchanged</td></tr>
+          <tr><td>Reverse Repo</td><td>3.35%</td><td>3.35%</td><td style="color:var(--yellow)">→ Unchanged</td></tr>
+          <tr><td>CRR</td><td>4.50%</td><td>4.50%</td><td style="color:var(--yellow)">→ Unchanged</td></tr>
+          <tr><td>SLR</td><td>18.00%</td><td>18.00%</td><td style="color:var(--yellow)">→ Unchanged</td></tr>
+          <tr><td>Current Account</td><td>-1.2% GDP</td><td>-2.0% GDP</td><td style="color:var(--green)">▲ Improving</td></tr>
+          <tr><td>Forex Reserves</td><td>$652.8B</td><td>$648.2B</td><td style="color:var(--green)">▲ Rising</td></tr>
+          <tr><td>GST Collection</td><td>₹1.82L Cr</td><td>₹1.78L Cr</td><td style="color:var(--green)">▲ Record high</td></tr>
+          <tr><td>FDI Inflows</td><td>$28.4B</td><td>$26.8B</td><td style="color:var(--green)">▲ Improving</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EU -->
+  <div class="tab-content" id="tab-eu">
+    <div class="stat-grid">
+      <div class="stat-item"><div class="sv" style="color:var(--yellow)">0.4%</div><div class="sl">GDP Growth</div><div class="sc" style="color:var(--yellow)">Near stagnation</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--green)">2.4%</div><div class="sl">HICP Inflation</div><div class="sc" style="color:var(--green)">Nearing 2% target</div></div>
+      <div class="stat-item"><div class="sv">6.4%</div><div class="sl">Unemployment</div><div class="sc">Record low</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--blue)">4.50%</div><div class="sl">ECB Rate</div><div class="sc">Cutting cycle begun</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-title">EU GDP Growth</div><div class="chart-container"><canvas id="euGdpChart"></canvas></div></div>
+      <div class="card"><div class="card-title">EU Inflation (HICP)</div><div class="chart-container"><canvas id="euInflChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- China -->
+  <div class="tab-content" id="tab-china">
+    <div class="stat-grid">
+      <div class="stat-item"><div class="sv" style="color:var(--yellow)">4.9%</div><div class="sl">GDP Growth</div><div class="sc">Below 5% target</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--cyan)">0.2%</div><div class="sl">CPI Inflation</div><div class="sc" style="color:var(--red)">Near deflation</div></div>
+      <div class="stat-item"><div class="sv">5.0%</div><div class="sl">Unemployment</div><div class="sc">Youth UE much higher</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--blue)">3.45%</div><div class="sl">LPR 1Y</div><div class="sc">PBOC easing</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-title">China GDP Growth</div><div class="chart-container"><canvas id="cnGdpChart"></canvas></div></div>
+      <div class="card"><div class="card-title">China CPI & PPI</div><div class="chart-container"><canvas id="cnInflChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- Japan -->
+  <div class="tab-content" id="tab-japan">
+    <div class="stat-grid">
+      <div class="stat-item"><div class="sv" style="color:var(--yellow)">1.2%</div><div class="sl">GDP Growth</div><div class="sc">Modest recovery</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--orange)">2.8%</div><div class="sl">CPI Inflation</div><div class="sc">Above BOJ target</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--green)">2.5%</div><div class="sl">Unemployment</div><div class="sc">Very low</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--blue)">0.25%</div><div class="sl">BOJ Rate</div><div class="sc">Normalizing</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-title">Japan GDP Growth</div><div class="chart-container"><canvas id="jpGdpChart"></canvas></div></div>
+      <div class="card"><div class="card-title">Japan CPI</div><div class="chart-container"><canvas id="jpInflChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- UK -->
+  <div class="tab-content" id="tab-uk">
+    <div class="stat-grid">
+      <div class="stat-item"><div class="sv" style="color:var(--yellow)">0.6%</div><div class="sl">GDP Growth</div><div class="sc">Sluggish</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--orange)">4.0%</div><div class="sl">CPI Inflation</div><div class="sc" style="color:var(--red)">Still elevated</div></div>
+      <div class="stat-item"><div class="sv">4.2%</div><div class="sl">Unemployment</div><div class="sc">Rising</div></div>
+      <div class="stat-item"><div class="sv" style="color:var(--blue)">5.25%</div><div class="sl">BOE Rate</div><div class="sc">Peak likely passed</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-title">UK GDP Growth</div><div class="chart-container"><canvas id="ukGdpChart"></canvas></div></div>
+      <div class="card"><div class="card-title">UK CPI</div><div class="chart-container"><canvas id="ukInflChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt=(n,d=1)=>Number(n).toFixed(d);
+const quarters = ['Q1 23','Q2 23','Q3 23','Q4 23','Q1 24','Q2 24','Q3 24'];
+const months = ['May','Jun','Jul','Aug','Sep','Oct','Nov'];
+
+function barChartOpts(label){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v+'%'},grid:{color:'rgba(255,255,255,0.03)'}}}}}
+function lineChartOpts(){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#94a3b8',font:{size:11}}}},scales:{x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v+'%'},grid:{color:'rgba(255,255,255,0.03)'}}}}}
+
+// Tab switching
+window.showTab = function(id) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+  // Init charts lazily
+  if (!window['init_'+id]) { window['init_'+id]=true; initCharts(id); }
+};
+
+function initCharts(tab) {
+  switch(tab) {
+    case 'india': initIndia(); break;
+    case 'eu': initEU(); break;
+    case 'china': initChina(); break;
+    case 'japan': initJapan(); break;
+    case 'uk': initUK(); break;
+  }
+}
+
+// US Charts (init immediately)
+function colorBars(data) { return data.map(v=>v>=0?'rgba(34,197,94,0.7)':'rgba(239,68,68,0.7)'); }
+
+const usGdp = [2.2,2.1,4.9,3.4,1.6,3.0,2.8];
+new Chart(document.getElementById('usGdpChart'),{type:'bar',data:{labels:quarters,datasets:[{data:usGdp,backgroundColor:colorBars(usGdp),borderRadius:6}]},options:barChartOpts()});
+
+new Chart(document.getElementById('usCpiChart'),{type:'line',data:{labels:months,datasets:[
+  {label:'CPI',data:[4.0,3.0,3.2,3.7,3.7,3.2,3.2],borderColor:'#ef4444',tension:0.4,pointRadius:3,borderWidth:2},
+  {label:'Core CPI',data:[5.3,4.8,4.7,4.3,4.1,4.0,4.0],borderColor:'#f97316',tension:0.4,pointRadius:3,borderWidth:2},
+]},options:lineChartOpts()});
+
+new Chart(document.getElementById('usUnempChart'),{type:'line',data:{labels:months,datasets:[
+  {label:'Unemployment',data:[3.7,3.6,3.5,3.8,3.8,3.9,3.9],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',fill:true,tension:0.4,pointRadius:3,borderWidth:2},
+]},options:{...lineChartOpts(),plugins:{legend:{display:false}}}});
+
+new Chart(document.getElementById('usHousingChart'),{type:'bar',data:{labels:months,datasets:[
+  {label:'Housing Starts (K)',data:[1420,1450,1380,1410,1360,1340,1310],backgroundColor:'rgba(168,85,247,0.6)',borderRadius:4},
+  {label:'Existing Home Sales (M)',data:[4.30,4.16,4.07,4.04,3.96,3.79,3.96],backgroundColor:'rgba(6,182,212,0.6)',borderRadius:4,yAxisID:'y1'},
+]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#94a3b8',font:{size:11}}}},scales:{
+  x:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}},
+  y:{position:'left',ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},
+  y1:{position:'right',ticks:{color:'#64748b',font:{size:10}},grid:{display:false}}
+}}});
+
+function initIndia(){
+  const inGdp=[6.1,7.8,7.6,8.4,6.7,6.7,7.6];
+  new Chart(document.getElementById('inGdpChart'),{type:'bar',data:{labels:quarters,datasets:[{data:inGdp,backgroundColor:colorBars(inGdp),borderRadius:6}]},options:barChartOpts()});
+  new Chart(document.getElementById('inInflChart'),{type:'line',data:{labels:months,datasets:[
+    {label:'CPI',data:[4.3,4.9,7.4,6.8,5.0,6.2,5.1],borderColor:'#ef4444',tension:0.4,pointRadius:3,borderWidth:2},
+    {label:'WPI',data:[-3.6,-4.1,-1.4,-0.5,1.3,2.4,1.8],borderColor:'#f97316',tension:0.4,pointRadius:3,borderWidth:2},
+  ]},options:lineChartOpts()});
+  new Chart(document.getElementById('inIipChart'),{type:'bar',data:{labels:months,datasets:[{label:'IIP Growth',data:[4.2,3.8,5.7,10.3,3.1,3.5,5.8],backgroundColor:'rgba(59,130,246,0.6)',borderRadius:4}]},options:barChartOpts()});
+  // FII/DII flows
+  const fiiData=[-8452,-12840,-4250,-6120,-9845,-22810,-15420];
+  const diiData=[12450,18920,8640,10250,14580,28450,19840];
+  new Chart(document.getElementById('inFlowsChart'),{type:'bar',data:{labels:months,datasets:[
+    {label:'FII',data:fiiData,backgroundColor:fiiData.map(v=>v>=0?'rgba(34,197,94,0.7)':'rgba(239,68,68,0.7)'),borderRadius:4},
+    {label:'DII',data:diiData,backgroundColor:'rgba(59,130,246,0.7)',borderRadius:4},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#94a3b8',font:{size:11}}}},scales:{
+    x:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}},
+    y:{ticks:{color:'#64748b',font:{size:10},callback:v=>(v/1000).toFixed(0)+'K Cr'},grid:{color:'rgba(255,255,255,0.03)'}}
+  }}});
+}
+
+function initEU(){
+  new Chart(document.getElementById('euGdpChart'),{type:'bar',data:{labels:quarters,datasets:[{data:[0.0,-0.1,0.0,0.1,0.3,0.3,0.4],backgroundColor:colorBars([0.0,-0.1,0.0,0.1,0.3,0.3,0.4]),borderRadius:6}]},options:barChartOpts()});
+  new Chart(document.getElementById('euInflChart'),{type:'line',data:{labels:months,datasets:[
+    {label:'HICP',data:[6.1,5.5,5.3,5.2,4.3,2.9,2.4],borderColor:'#eab308',tension:0.4,pointRadius:3,borderWidth:2},
+  ]},options:lineChartOpts()});
+}
+
+function initChina(){
+  new Chart(document.getElementById('cnGdpChart'),{type:'bar',data:{labels:quarters,datasets:[{data:[4.5,6.3,4.9,5.2,5.3,4.7,4.9],backgroundColor:colorBars([4.5,6.3,4.9,5.2,5.3,4.7,4.9]),borderRadius:6}]},options:barChartOpts()});
+  new Chart(document.getElementById('cnInflChart'),{type:'line',data:{labels:months,datasets:[
+    {label:'CPI',data:[0.2,0.0,-0.3,0.1,0.4,0.3,0.2],borderColor:'#06b6d4',tension:0.4,pointRadius:3,borderWidth:2},
+    {label:'PPI',data:[-4.6,-5.4,-4.4,-3.0,-2.5,-2.6,-2.8],borderColor:'#a855f7',tension:0.4,pointRadius:3,borderWidth:2},
+  ]},options:lineChartOpts()});
+}
+
+function initJapan(){
+  new Chart(document.getElementById('jpGdpChart'),{type:'bar',data:{labels:quarters,datasets:[{data:[2.0,4.5,-3.3,0.4,-2.0,2.9,1.2],backgroundColor:colorBars([2.0,4.5,-3.3,0.4,-2.0,2.9,1.2]),borderRadius:6}]},options:barChartOpts()});
+  new Chart(document.getElementById('jpInflChart'),{type:'line',data:{labels:months,datasets:[
+    {label:'CPI',data:[3.2,3.3,3.3,3.2,2.8,2.3,2.8],borderColor:'#ef4444',tension:0.4,pointRadius:3,borderWidth:2},
+  ]},options:lineChartOpts()});
+}
+
+function initUK(){
+  new Chart(document.getElementById('ukGdpChart'),{type:'bar',data:{labels:quarters,datasets:[{data:[0.3,0.1,-0.1,0.3,0.7,0.6,0.6],backgroundColor:colorBars([0.3,0.1,-0.1,0.3,0.7,0.6,0.6]),borderRadius:6}]},options:barChartOpts()});
+  new Chart(document.getElementById('ukInflChart'),{type:'line',data:{labels:months,datasets:[
+    {label:'CPI',data:[8.7,7.9,6.8,6.7,6.7,4.6,4.0],borderColor:'#22c55e',tension:0.4,pointRadius:3,borderWidth:2},
+  ]},options:lineChartOpts()});
+}
+</script>
+</body>
+</html>

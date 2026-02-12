@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Market Heat Map — GlobalPulse</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary:#0a0e17;--bg-secondary:#111827;--bg-card:#1a1f2e;--border:#2a3045;
+  --text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;
+  --green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--yellow:#eab308;--purple:#a855f7;--cyan:#06b6d4;--orange:#f97316;
+  --gradient-card:linear-gradient(135deg,#1a1f2e 0%,#151a28 100%);--shadow-card:0 4px 24px rgba(0,0,0,0.3);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg-primary)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.page-header{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:20px 30px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+.logo h1{font-size:22px;font-weight:700}.logo h1 span{color:var(--blue)}
+.breadcrumb{font-size:13px;color:var(--text-muted);margin-top:6px}.breadcrumb a{color:var(--blue);text-decoration:none}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--blue);text-decoration:none;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;background:var(--blue-bg)}
+.container{max-width:1800px;margin:0 auto;padding:20px}
+.section-title{font-size:18px;font-weight:700;margin:30px 0 16px;display:flex;align-items:center;gap:10px}
+.card{background:var(--gradient-card);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow-card);position:relative;overflow:hidden;transition:border-color 0.3s}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--purple));opacity:0;transition:opacity 0.3s}
+.card:hover::before{opacity:1}.card:hover{border-color:rgba(59,130,246,0.3)}
+.card-title{font-size:14px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+/* Heat Map Grid */
+.heatmap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:30px}
+.heat-cell{border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:all 0.3s;border:1px solid transparent;position:relative}
+.heat-cell:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.2);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.heat-cell .region{font-size:13px;font-weight:600;margin-bottom:4px;opacity:0.9}
+.heat-cell .index-name{font-size:11px;opacity:0.7;margin-bottom:8px}
+.heat-cell .value{font-size:24px;font-weight:700;margin-bottom:4px}
+.heat-cell .change{font-size:14px;font-weight:600}
+.heat-cell .flag{font-size:28px;margin-bottom:6px}
+
+/* Sector Grid */
+.sector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.sector-bar{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;position:relative;overflow:hidden}
+.sector-bar .name{font-size:13px;font-weight:600;margin-bottom:6px}
+.sector-bar .perf{font-size:18px;font-weight:700}
+.sector-bar .bar{position:absolute;bottom:0;left:0;height:3px;border-radius:0 0 10px 10px;transition:width 0.5s}
+
+/* Rankings Table */
+.rank-table{width:100%;border-collapse:collapse}
+.rank-table th{text-align:left;padding:10px 14px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)}
+.rank-table td{padding:10px 14px;border-bottom:1px solid rgba(42,48,69,0.5);font-size:14px}
+.rank-table tr:hover{background:rgba(59,130,246,0.05)}
+.rank-num{font-weight:700;color:var(--blue)}
+.up{color:var(--green)}.down{color:var(--red)}
+
+/* Chart container */
+.chart-wrap{position:relative;height:300px;margin-top:16px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div class="logo">
+    <div class="logo-icon">🗺️</div>
+    <div><h1>Global<span>Pulse</span></h1><div class="breadcrumb"><a href="index.html">Dashboard</a> / Global Market Heat Map</div></div>
+  </div>
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+</div>
+<div class="container">
+
+  <div class="section-title">🗺️ Global Market Performance by Region</div>
+  <div class="heatmap-grid" id="heatmap"></div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📊 Regional Performance Comparison (YTD %)</div>
+      <div class="chart-wrap"><canvas id="regionChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🏆 YTD Performance Rankings</div>
+      <table class="rank-table" id="rankings">
+        <thead><tr><th>#</th><th>Market</th><th>Index</th><th>YTD</th><th>1M</th><th>1W</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:30px">🏭 US Sector Performance</div>
+  <div class="sector-grid" id="sectors"></div>
+
+  <div style="margin-top:30px" class="grid-2">
+    <div class="card">
+      <div class="card-title">🇺🇸 US Sectors (Daily %)</div>
+      <div class="chart-wrap"><canvas id="sectorChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🇮🇳 India Sectors (Daily %)</div>
+      <div class="chart-wrap"><canvas id="indiaSectorChart"></canvas></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const regions = [
+  {name:'United States', flag:'🇺🇸', index:'S&P 500', symbol:'^GSPC', change:1.24, ytd:8.5, m1:3.2, w1:0.8},
+  {name:'India', flag:'🇮🇳', index:'Nifty 50', symbol:'^NSEI', change:0.85, ytd:5.2, m1:2.1, w1:0.4},
+  {name:'India (BSE)', flag:'🇮🇳', index:'Sensex', symbol:'^BSESN', change:0.71, ytd:4.8, m1:1.9, w1:0.3},
+  {name:'Japan', flag:'🇯🇵', index:'Nikkei 225', symbol:'^N225', change:-0.32, ytd:6.8, m1:-1.2, w1:-0.5},
+  {name:'Germany', flag:'🇩🇪', index:'DAX', symbol:'^GDAXI', change:0.45, ytd:9.1, m1:4.5, w1:1.1},
+  {name:'United Kingdom', flag:'🇬🇧', index:'FTSE 100', symbol:'^FTSE', change:-0.18, ytd:3.4, m1:1.0, w1:-0.2},
+  {name:'China', flag:'🇨🇳', index:'Shanghai', symbol:'000001.SS', change:-0.55, ytd:-2.3, m1:-1.8, w1:-0.9},
+  {name:'Hong Kong', flag:'🇭🇰', index:'Hang Seng', symbol:'^HSI', change:-0.72, ytd:-4.1, m1:-2.5, w1:-1.2},
+  {name:'Australia', flag:'🇦🇺', index:'ASX 200', symbol:'^AXJO', change:0.29, ytd:4.2, m1:1.6, w1:0.3},
+  {name:'South Korea', flag:'🇰🇷', index:'KOSPI', symbol:'^KS11', change:0.15, ytd:-1.5, m1:0.8, w1:0.2},
+  {name:'Brazil', flag:'🇧🇷', index:'Bovespa', symbol:'^BVSP', change:-0.42, ytd:2.8, m1:-0.5, w1:-0.3},
+  {name:'Canada', flag:'🇨🇦', index:'TSX', symbol:'^GSPTSE', change:0.38, ytd:5.0, m1:2.0, w1:0.5},
+];
+
+const usSectors = [
+  {name:'Technology', perf:1.8},{name:'Healthcare', perf:-0.3},{name:'Financials', perf:0.9},
+  {name:'Energy', perf:-1.2},{name:'Consumer Disc.', perf:0.6},{name:'Industrials', perf:0.4},
+  {name:'Materials', perf:-0.5},{name:'Real Estate', perf:-0.8},{name:'Utilities', perf:0.2},
+  {name:'Comm. Services', perf:1.4},{name:'Consumer Staples', perf:0.1},
+];
+
+const indiaSectors = [
+  {name:'IT', perf:1.2},{name:'Banking', perf:0.8},{name:'Pharma', perf:-0.4},
+  {name:'Auto', perf:0.6},{name:'FMCG', perf:0.3},{name:'Metal', perf:-0.9},
+  {name:'Energy', perf:-0.5},{name:'Realty', perf:1.5},{name:'Infra', perf:0.7},
+  {name:'Media', perf:-0.2},{name:'PSU Bank', perf:1.1},
+];
+
+function getHeatColor(change) {
+  if (change > 1.5) return 'rgba(34,197,94,0.35)';
+  if (change > 0.5) return 'rgba(34,197,94,0.2)';
+  if (change > 0) return 'rgba(34,197,94,0.1)';
+  if (change > -0.5) return 'rgba(239,68,68,0.1)';
+  if (change > -1.5) return 'rgba(239,68,68,0.2)';
+  return 'rgba(239,68,68,0.35)';
+}
+
+// Render heat map
+const hmEl = document.getElementById('heatmap');
+regions.forEach(r => {
+  const cls = r.change >= 0 ? 'up' : 'down';
+  hmEl.innerHTML += `<div class="heat-cell" style="background:${getHeatColor(r.change)}">
+    <div class="flag">${r.flag}</div>
+    <div class="region">${r.name}</div>
+    <div class="index-name">${r.index}</div>
+    <div class="change ${cls}">${r.change >= 0 ? '+' : ''}${r.change.toFixed(2)}%</div>
+  </div>`;
+});
+
+// Rankings table
+const tbody = document.querySelector('#rankings tbody');
+const sorted = [...regions].sort((a, b) => b.ytd - a.ytd);
+sorted.forEach((r, i) => {
+  tbody.innerHTML += `<tr>
+    <td class="rank-num">${i + 1}</td>
+    <td>${r.flag} ${r.name}</td>
+    <td style="color:var(--text-secondary)">${r.index}</td>
+    <td class="${r.ytd >= 0 ? 'up' : 'down'}">${r.ytd >= 0 ? '+' : ''}${r.ytd}%</td>
+    <td class="${r.m1 >= 0 ? 'up' : 'down'}">${r.m1 >= 0 ? '+' : ''}${r.m1}%</td>
+    <td class="${r.w1 >= 0 ? 'up' : 'down'}">${r.w1 >= 0 ? '+' : ''}${r.w1}%</td>
+  </tr>`;
+});
+
+// Regional bar chart
+new Chart(document.getElementById('regionChart'), {
+  type: 'bar',
+  data: {
+    labels: regions.map(r => r.flag + ' ' + r.name),
+    datasets: [{
+      label: 'YTD %',
+      data: regions.map(r => r.ytd),
+      backgroundColor: regions.map(r => r.ytd >= 0 ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)'),
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: 'rgba(42,48,69,0.5)' }, ticks: { color: '#94a3b8' } },
+      y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 12 } } }
+    }
+  }
+});
+
+// Sector grids
+function renderSectors(data, elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  data.forEach(s => {
+    const cls = s.perf >= 0 ? 'up' : 'down';
+    const barColor = s.perf >= 0 ? 'var(--green)' : 'var(--red)';
+    const barWidth = Math.min(Math.abs(s.perf) * 30, 100);
+    el.innerHTML += `<div class="sector-bar">
+      <div class="name">${s.name}</div>
+      <div class="perf ${cls}">${s.perf >= 0 ? '+' : ''}${s.perf.toFixed(1)}%</div>
+      <div class="bar" style="background:${barColor};width:${barWidth}%"></div>
+    </div>`;
+  });
+}
+renderSectors(usSectors, 'sectors');
+
+// US Sector chart
+new Chart(document.getElementById('sectorChart'), {
+  type: 'bar',
+  data: {
+    labels: usSectors.map(s => s.name),
+    datasets: [{
+      label: 'Daily %',
+      data: usSectors.map(s => s.perf),
+      backgroundColor: usSectors.map(s => s.perf >= 0 ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)'),
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 45 } },
+      y: { grid: { color: 'rgba(42,48,69,0.5)' }, ticks: { color: '#94a3b8' } }
+    }
+  }
+});
+
+// India Sector chart
+new Chart(document.getElementById('indiaSectorChart'), {
+  type: 'bar',
+  data: {
+    labels: indiaSectors.map(s => s.name),
+    datasets: [{
+      label: 'Daily %',
+      data: indiaSectors.map(s => s.perf),
+      backgroundColor: indiaSectors.map(s => s.perf >= 0 ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)'),
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 45 } },
+      y: { grid: { color: 'rgba(42,48,69,0.5)' }, ticks: { color: '#94a3b8' } }
+    }
+  }
+});
+
+// Live update from Yahoo Finance
+async function fetchLiveData() {
+  const symbols = regions.map(r => r.symbol);
+  for (const r of regions) {
+    try {
+      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(r.symbol)}?interval=1d&range=1d`);
+      const data = await res.json();
+      const meta = data.chart.result[0].meta;
+      const price = meta.regularMarketPrice;
+      const prev = meta.chartPreviousClose;
+      r.change = +((price - prev) / prev * 100).toFixed(2);
+    } catch(e) {}
+  }
+  // Re-render heatmap
+  hmEl.innerHTML = '';
+  regions.forEach(r => {
+    const cls = r.change >= 0 ? 'up' : 'down';
+    hmEl.innerHTML += `<div class="heat-cell" style="background:${getHeatColor(r.change)}">
+      <div class="flag">${r.flag}</div>
+      <div class="region">${r.name}</div>
+      <div class="index-name">${r.index}</div>
+      <div class="change ${cls}">${r.change >= 0 ? '+' : ''}${r.change.toFixed(2)}%</div>
+    </div>`;
+  });
+}
+fetchLiveData();
+setInterval(fetchLiveData, 60000);
+</script>
+</body>
+</html>

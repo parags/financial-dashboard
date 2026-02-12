@@ -216,6 +216,17 @@ header {
 .card-title .icon {
   font-size: 18px;
 }
+.card-title { display: flex; justify-content: space-between; align-items: center; }
+.card-title .detail-link {
+  font-size: 12px;
+  color: var(--blue);
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.card-title .detail-link:hover { opacity: 1; }
 
 /* Data Items */
 .data-grid {
@@ -454,38 +465,38 @@ header {
 
   <!-- Market Indices -->
   <div class="card">
-    <div class="card-title"><span class="icon">📈</span> Global Market Indices</div>
+    <div class="card-title"><span><span class="icon">📈</span> Global Market Indices</span><a href="indices.html" class="detail-link">View Details →</a></div>
     <div class="data-grid" id="indices"></div>
   </div>
 
   <!-- Crypto -->
   <div class="card">
-    <div class="card-title"><span class="icon">₿</span> Cryptocurrency</div>
+    <div class="card-title"><span><span class="icon">₿</span> Cryptocurrency</span><a href="crypto.html" class="detail-link">View Details →</a></div>
     <div class="data-grid" id="crypto"></div>
   </div>
 
   <!-- Currencies -->
   <div class="card">
-    <div class="card-title"><span class="icon">💱</span> Currency Exchange Rates</div>
+    <div class="card-title"><span><span class="icon">💱</span> Currency Exchange Rates</span><a href="currencies.html" class="detail-link">View Details →</a></div>
     <div class="data-grid" id="currencies"></div>
   </div>
 
   <!-- Commodities -->
   <div class="card">
-    <div class="card-title"><span class="icon">🛢️</span> Commodities</div>
+    <div class="card-title"><span><span class="icon">🛢️</span> Commodities</span><a href="commodities.html" class="detail-link">View Details →</a></div>
     <div class="data-grid" id="commodities"></div>
   </div>
 
   <!-- Bonds -->
   <div class="card">
-    <div class="card-title"><span class="icon">🏛️</span> Bond Yields</div>
+    <div class="card-title"><span><span class="icon">🏛️</span> Bond Yields</span><a href="bonds.html" class="detail-link">View Details →</a></div>
     <div class="data-grid" id="bonds"></div>
     <div class="chart-container"><canvas id="yieldCurveChart"></canvas></div>
   </div>
 
   <!-- Fear & Greed -->
   <div class="card">
-    <div class="card-title"><span class="icon">😨</span> Fear & Greed / Volatility</div>
+    <div class="card-title"><span><span class="icon">😨</span> Fear & Greed / Volatility</span><a href="fear-greed.html" class="detail-link">View Details →</a></div>
     <div class="gauge-container">
       <svg class="gauge-svg" viewBox="0 0 200 120" id="fgGauge">
         <defs>
@@ -510,7 +521,7 @@ header {
 
   <!-- Economic Indicators -->
   <div class="card section-full">
-    <div class="card-title"><span class="icon">🌍</span> Economic Indicators — Major Economies</div>
+    <div class="card-title"><span><span class="icon">🌍</span> Economic Indicators — Major Economies</span><a href="economy.html" class="detail-link">View Details →</a></div>
     <div style="overflow-x:auto;">
       <table class="econ-table" id="econTable"></table>
     </div>
@@ -518,7 +529,7 @@ header {
 
   <!-- Heat Map -->
   <div class="card section-full">
-    <div class="card-title"><span class="icon">🗺️</span> Global Market Performance Heat Map</div>
+    <div class="card-title"><span><span class="icon">🗺️</span> Global Market Performance Heat Map</span><a href="heatmap.html" class="detail-link">View Details →</a></div>
     <div class="heatmap-grid" id="heatmap"></div>
   </div>
 </div>
