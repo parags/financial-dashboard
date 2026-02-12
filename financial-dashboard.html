@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Financial Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card: #1a1f2e;
+  --bg-card-hover: #222839;
+  --border: #2a3045;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --green: #22c55e;
+  --green-dim: #16a34a;
+  --green-bg: rgba(34,197,94,0.1);
+  --red: #ef4444;
+  --red-dim: #dc2626;
+  --red-bg: rgba(239,68,68,0.1);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.1);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234,179,8,0.1);
+  --purple: #a855f7;
+  --cyan: #06b6d4;
+  --orange: #f97316;
+  --gradient-card: linear-gradient(135deg, #1a1f2e 0%, #151a28 100%);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.3);
+  --shadow-glow-green: 0 0 20px rgba(34,197,94,0.15);
+  --shadow-glow-red: 0 0 20px rgba(239,68,68,0.15);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Ticker Bar */
+.ticker-wrap {
+  background: linear-gradient(90deg, #0f1520 0%, #141b2a 50%, #0f1520 100%);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  height: 40px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.ticker {
+  display: flex;
+  animation: ticker 60s linear infinite;
+  height: 100%;
+  align-items: center;
+  width: max-content;
+}
+.ticker:hover { animation-play-state: paused; }
+.ticker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 20px;
+  font-size: 13px;
+  white-space: nowrap;
+  border-right: 1px solid var(--border);
+}
+.ticker-item .name { color: var(--text-secondary); font-weight: 500; }
+.ticker-item .price { color: var(--text-primary); font-weight: 600; }
+.ticker-item .change { font-weight: 600; font-size: 12px; }
+.ticker-item .change.up { color: var(--green); }
+.ticker-item .change.down { color: var(--red); }
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Header */
+header {
+  padding: 20px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 700;
+}
+.logo h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.logo h1 span { color: var(--blue); }
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.status-dot {
+  width: 8px; height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+}
+.refresh-bar {
+  height: 2px;
+  background: var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.refresh-bar .progress {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), var(--purple));
+  width: 0%;
+  transition: width 1s linear;
+}
+
+/* Main Grid */
+.dashboard {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 20px;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+.section-full {
+  grid-column: 1 / -1;
+}
+
+/* Cards */
+.card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s, border-color 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--blue), var(--purple));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.card:hover::before { opacity: 1; }
+.card:hover { border-color: rgba(59,130,246,0.3); }
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title .icon {
+  font-size: 18px;
+}
+
+/* Data Items */
+.data-grid {
+  display: grid;
+  gap: 8px;
+}
+.data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 10px;
+  transition: background 0.2s, transform 0.2s;
+  cursor: default;
+}
+.data-row:hover {
+  background: rgba(255,255,255,0.05);
+  transform: translateX(2px);
+}
+.data-row .label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+.data-row .label .flag { font-size: 16px; }
+.data-row .values {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: right;
+}
+.data-row .price {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  text-align: right;
+}
+.data-row .change {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  min-width: 70px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.change.up { color: var(--green); background: var(--green-bg); }
+.change.down { color: var(--red); background: var(--red-bg); }
+.sparkline-container { width: 60px; height: 28px; }
+
+/* Gauge */
+.gauge-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+}
+.gauge-svg { max-width: 220px; }
+.gauge-label {
+  font-size: 28px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.gauge-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Heat Map */
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+.heatmap-cell {
+  padding: 14px 10px;
+  border-radius: 10px;
+  text-align: center;
+  transition: transform 0.2s;
+  cursor: default;
+}
+.heatmap-cell:hover { transform: scale(1.05); }
+.heatmap-cell .region { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.85; }
+.heatmap-cell .hm-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+.heatmap-cell .hm-index { font-size: 11px; margin-top: 2px; opacity: 0.7; }
+
+/* Economic Table */
+.econ-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  font-size: 13px;
+}
+.econ-table th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.econ-table td {
+  padding: 10px;
+  background: rgba(255,255,255,0.02);
+  font-variant-numeric: tabular-nums;
+}
+.econ-table tr td:first-child {
+  border-radius: 8px 0 0 8px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.econ-table tr td:last-child { border-radius: 0 8px 8px 0; }
+
+/* VIX meter */
+.vix-items {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+.vix-stat {
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+}
+.vix-stat .vix-val { font-size: 22px; font-weight: 700; }
+.vix-stat .vix-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Chart containers */
+.chart-container {
+  position: relative;
+  height: 180px;
+  margin-top: 12px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.card { animation: fadeInUp 0.4s ease-out both; }
+.card:nth-child(2) { animation-delay: 0.05s; }
+.card:nth-child(3) { animation-delay: 0.1s; }
+.card:nth-child(4) { animation-delay: 0.15s; }
+.card:nth-child(5) { animation-delay: 0.2s; }
+.card:nth-child(6) { animation-delay: 0.25s; }
+.card:nth-child(7) { animation-delay: 0.3s; }
+.card:nth-child(8) { animation-delay: 0.35s; }
+
+@keyframes flashGreen { 0% { background: var(--green-bg); } 100% { background: transparent; } }
+@keyframes flashRed { 0% { background: var(--red-bg); } 100% { background: transparent; } }
+.flash-green { animation: flashGreen 0.6s ease-out; }
+.flash-red { animation: flashRed 0.6s ease-out; }
+
+/* Responsive */
+@media (max-width: 860px) {
+  .dashboard { grid-template-columns: 1fr; padding: 12px; gap: 14px; }
+  header { padding: 14px 16px; }
+  .logo h1 { font-size: 18px; }
+  .heatmap-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
+@media (max-width: 480px) {
+  .data-row .values { gap: 6px; }
+  .sparkline-container { display: none; }
+  .vix-items { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Ticker -->
+<div class="ticker-wrap">
+  <div class="ticker" id="ticker"></div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">G</div>
+    <h1>Global<span>Pulse</span></h1>
+  </div>
+  <div class="header-meta">
+    <span><span class="status-dot"></span> Live</span>
+    <span id="lastUpdate">--</span>
+    <span id="nextRefresh">Next refresh: 30s</span>
+  </div>
+</header>
+<div class="refresh-bar"><div class="progress" id="refreshProgress"></div></div>
+
+<!-- Dashboard -->
+<div class="dashboard">
+
+  <!-- Market Indices -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📈</span> Global Market Indices</div>
+    <div class="data-grid" id="indices"></div>
+  </div>
+
+  <!-- Crypto -->
+  <div class="card">
+    <div class="card-title"><span class="icon">₿</span> Cryptocurrency</div>
+    <div class="data-grid" id="crypto"></div>
+  </div>
+
+  <!-- Currencies -->
+  <div class="card">
+    <div class="card-title"><span class="icon">💱</span> Currency Exchange Rates</div>
+    <div class="data-grid" id="currencies"></div>
+  </div>
+
+  <!-- Commodities -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🛢️</span> Commodities</div>
+    <div class="data-grid" id="commodities"></div>
+  </div>
+
+  <!-- Bonds -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🏛️</span> Bond Yields</div>
+    <div class="data-grid" id="bonds"></div>
+    <div class="chart-container"><canvas id="yieldCurveChart"></canvas></div>
+  </div>
+
+  <!-- Fear & Greed -->
+  <div class="card">
+    <div class="card-title"><span class="icon">😨</span> Fear & Greed / Volatility</div>
+    <div class="gauge-container">
+      <svg class="gauge-svg" viewBox="0 0 200 120" id="fgGauge">
+        <defs>
+          <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#ef4444"/>
+            <stop offset="25%" style="stop-color:#f97316"/>
+            <stop offset="50%" style="stop-color:#eab308"/>
+            <stop offset="75%" style="stop-color:#84cc16"/>
+            <stop offset="100%" style="stop-color:#22c55e"/>
+          </linearGradient>
+        </defs>
+        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#1e293b" stroke-width="14" stroke-linecap="round"/>
+        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGrad)" stroke-width="14" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="251" id="gaugeArc"/>
+        <line x1="100" y1="100" x2="100" y2="30" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" id="gaugeNeedle" transform="rotate(-90, 100, 100)"/>
+        <circle cx="100" cy="100" r="5" fill="var(--text-primary)"/>
+      </svg>
+      <div class="gauge-label" id="fgValue">--</div>
+      <div class="gauge-text" id="fgText">Loading...</div>
+    </div>
+    <div class="vix-items" id="vixStats"></div>
+  </div>
+
+  <!-- Economic Indicators -->
+  <div class="card section-full">
+    <div class="card-title"><span class="icon">🌍</span> Economic Indicators — Major Economies</div>
+    <div style="overflow-x:auto;">
+      <table class="econ-table" id="econTable"></table>
+    </div>
+  </div>
+
+  <!-- Heat Map -->
+  <div class="card section-full">
+    <div class="card-title"><span class="icon">🗺️</span> Global Market Performance Heat Map</div>
+    <div class="heatmap-grid" id="heatmap"></div>
+  </div>
+</div>
+
+<script>
+// ─── Utilities ───
+const fmt = (n, d=2) => n != null ? Number(n).toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d}) : '--';
+const fmtPct = (n) => n != null ? (n >= 0 ? '+' : '') + fmt(n) + '%' : '--';
+const changeClass = (n) => n >= 0 ? 'up' : 'down';
+const rand = (base, pct=0.3) => base * (1 + (Math.random() - 0.5) * 2 * pct / 100);
+const drift = (base, pct=0.05) => base + (Math.random() - 0.48) * pct;
+
+// ─── Sparkline Data Store ───
+const sparkData = {};
+function pushSpark(key, val) {
+  if (!sparkData[key]) sparkData[key] = [];
+  sparkData[key].push(val);
+  if (sparkData[key].length > 20) sparkData[key].shift();
+}
+function drawSparkline(canvas, data, up) {
+  if (!canvas || !data || data.length < 2) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.offsetWidth * 2;
+  const h = canvas.height = canvas.offsetHeight * 2;
+  ctx.clearRect(0,0,w,h);
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = max - min || 1;
+  const color = up ? '#22c55e' : '#ef4444';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  data.forEach((v,i) => {
+    const x = (i / (data.length-1)) * w;
+    const y = h - ((v - min) / range) * h * 0.8 - h * 0.1;
+    i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  // gradient fill
+  const last = data[data.length-1];
+  const ly = h - ((last - min) / range) * h * 0.8 - h * 0.1;
+  ctx.lineTo(w, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0, up ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+// ─── Render Helpers ───
+function renderRow(id, label, price, change, priceFmt, flag='') {
+  pushSpark(id, price);
+  const dir = changeClass(change);
+  return `<div class="data-row" id="row-${id}">
+    <div class="label">${flag ? '<span class="flag">'+flag+'</span>' : ''}${label}</div>
+    <div class="values">
+      <canvas class="sparkline-container" id="spark-${id}"></canvas>
+      <span class="price">${priceFmt}</span>
+      <span class="change ${dir}">${fmtPct(change)}</span>
+    </div>
+  </div>`;
+}
+
+// ─── Simulated Market Data ───
+const indicesBase = [
+  {id:'sp500', name:'S&P 500', flag:'🇺🇸', price:5924.50, change:0.42},
+  {id:'nasdaq', name:'NASDAQ', flag:'🇺🇸', price:19210.18, change:0.68},
+  {id:'djia', name:'Dow Jones', flag:'🇺🇸', price:43548.72, change:0.21},
+  {id:'ftse', name:'FTSE 100', flag:'🇬🇧', price:8312.56, change:-0.15},
+  {id:'nikkei', name:'Nikkei 225', flag:'🇯🇵', price:38924.18, change:0.85},
+  {id:'dax', name:'DAX', flag:'🇩🇪', price:19254.30, change:0.33},
+  {id:'hsi', name:'Hang Seng', flag:'🇭🇰', price:19630.45, change:-0.52},
+  {id:'sse', name:'Shanghai Comp', flag:'🇨🇳', price:3096.78, change:-0.18},
+  {id:'sensex', name:'BSE Sensex', flag:'🇮🇳', price:80248.65, change:0.71},
+  {id:'asx', name:'ASX 200', flag:'🇦🇺', price:8198.30, change:0.29},
+];
+const currBase = [
+  {id:'eurusd', name:'EUR/USD', flag:'🇪🇺', price:1.0542, change:0.12},
+  {id:'gbpusd', name:'GBP/USD', flag:'🇬🇧', price:1.2618, change:-0.08},
+  {id:'usdjpy', name:'USD/JPY', flag:'🇯🇵', price:154.82, change:0.23},
+  {id:'usdchf', name:'USD/CHF', flag:'🇨🇭', price:0.8865, change:0.05},
+  {id:'usdinr', name:'USD/INR', flag:'🇮🇳', price:84.38, change:0.03},
+  {id:'usdcny', name:'USD/CNY', flag:'🇨🇳', price:7.2485, change:-0.11},
+  {id:'audusd', name:'AUD/USD', flag:'🇦🇺', price:0.6512, change:-0.22},
+  {id:'usdcad', name:'USD/CAD', flag:'🇨🇦', price:1.3984, change:0.14},
+];
+const commBase = [
+  {id:'gold', name:'Gold', flag:'🥇', price:2652.40, change:0.38},
+  {id:'silver', name:'Silver', flag:'🥈', price:30.58, change:0.95},
+  {id:'wti', name:'Crude Oil (WTI)', flag:'🛢️', price:71.24, change:-0.62},
+  {id:'brent', name:'Brent Crude', flag:'🛢️', price:75.18, change:-0.48},
+  {id:'natgas', name:'Natural Gas', flag:'🔥', price:3.284, change:1.42},
+  {id:'copper', name:'Copper', flag:'🔶', price:4.182, change:0.28},
+  {id:'platinum', name:'Platinum', flag:'⬜', price:942.60, change:-0.34},
+];
+const bondBase = [
+  {id:'us10y', name:'US 10Y', flag:'🇺🇸', price:4.428, change:0.02},
+  {id:'us2y', name:'US 2Y', flag:'🇺🇸', price:4.312, change:-0.01},
+  {id:'us30y', name:'US 30Y', flag:'🇺🇸', price:4.586, change:0.03},
+  {id:'de10y', name:'German 10Y', flag:'🇩🇪', price:2.348, change:-0.02},
+  {id:'uk10y', name:'UK 10Y', flag:'🇬🇧', price:4.512, change:0.01},
+  {id:'jp10y', name:'Japan 10Y', flag:'🇯🇵', price:1.068, change:0.005},
+];
+
+// live state
+let liveIndices = JSON.parse(JSON.stringify(indicesBase));
+let liveCurr = JSON.parse(JSON.stringify(currBase));
+let liveComm = JSON.parse(JSON.stringify(commBase));
+let liveBonds = JSON.parse(JSON.stringify(bondBase));
+let liveCrypto = [
+  {id:'bitcoin', name:'Bitcoin', flag:'₿', price:97420, change:2.15, symbol:'BTC'},
+  {id:'ethereum', name:'Ethereum', flag:'Ξ', price:3642, change:1.82, symbol:'ETH'},
+  {id:'binancecoin', name:'BNB', flag:'◆', price:642.8, change:0.65, symbol:'BNB'},
+  {id:'solana', name:'Solana', flag:'◎', price:242.5, change:3.45, symbol:'SOL'},
+  {id:'ripple', name:'XRP', flag:'✕', price:2.38, change:5.21, symbol:'XRP'},
+];
+let fgIndex = 62;
+let vixValue = 14.8;
+
+function simulateTick(arr, volatility=0.08) {
+  arr.forEach(item => {
+    item.price = rand(item.price, volatility);
+    item.change = drift(item.change, 0.02);
+    item.change = Math.max(-9.9, Math.min(9.9, item.change));
+  });
+}
+
+// ─── Rendering ───
+function renderSection(containerId, data, priceDecimals=2) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = data.map(d =>
+    renderRow(d.id, d.name, d.price, d.change, fmt(d.price, priceDecimals), d.flag)
+  ).join('');
+  // draw sparklines after DOM update
+  requestAnimationFrame(() => {
+    data.forEach(d => {
+      const c = document.getElementById('spark-' + d.id);
+      drawSparkline(c, sparkData[d.id], d.change >= 0);
+    });
+  });
+}
+
+function renderBonds() {
+  renderSection('bonds', liveBonds, 3);
+  renderYieldCurve();
+}
+
+function renderYieldCurve() {
+  const ctx = document.getElementById('yieldCurveChart');
+  if (!ctx) return;
+  if (window._yieldChart) {
+    window._yieldChart.data.datasets[0].data = [liveBonds[1].price, liveBonds[0].price, liveBonds[2].price];
+    window._yieldChart.update('none');
+    return;
+  }
+  window._yieldChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['2Y', '10Y', '30Y'],
+      datasets: [{
+        label: 'US Yield Curve',
+        data: [liveBonds[1].price, liveBonds[0].price, liveBonds[2].price],
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#3b82f6',
+        pointRadius: 5,
+        pointHoverRadius: 7,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#64748b', callback: v => v.toFixed(2) + '%' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+}
+
+function renderFearGreed() {
+  // gauge
+  const pct = fgIndex / 100;
+  const arc = document.getElementById('gaugeArc');
+  const needle = document.getElementById('gaugeNeedle');
+  const dashLen = 251;
+  arc.setAttribute('stroke-dashoffset', dashLen * (1 - pct));
+  const angle = -90 + pct * 180;
+  needle.setAttribute('transform', `rotate(${angle}, 100, 100)`);
+  document.getElementById('fgValue').textContent = Math.round(fgIndex);
+  const labels = ['Extreme Fear','Fear','Neutral','Greed','Extreme Greed'];
+  const li = Math.min(4, Math.floor(fgIndex / 20));
+  const colors = ['var(--red)','var(--orange)','var(--yellow)','#84cc16','var(--green)'];
+  document.getElementById('fgValue').style.color = colors[li];
+  document.getElementById('fgText').textContent = labels[li];
+
+  // stats
+  const putCall = (0.82 + Math.random() * 0.3).toFixed(2);
+  const advDec = (1.1 + Math.random() * 0.8).toFixed(2);
+  document.getElementById('vixStats').innerHTML = `
+    <div class="vix-stat"><div class="vix-val" style="color:${vixValue > 20 ? 'var(--red)' : vixValue > 15 ? 'var(--yellow)' : 'var(--green)'}">${fmt(vixValue,2)}</div><div class="vix-label">VIX Index</div></div>
+    <div class="vix-stat"><div class="vix-val">${putCall}</div><div class="vix-label">Put/Call Ratio</div></div>
+    <div class="vix-stat"><div class="vix-val" style="color:var(--blue)">${advDec}</div><div class="vix-label">Adv/Dec Ratio</div></div>
+    <div class="vix-stat"><div class="vix-val" style="color:var(--purple)">${Math.round(fgIndex)}</div><div class="vix-label">Fear & Greed</div></div>
+  `;
+}
+
+function renderEconomic() {
+  const data = [
+    {country:'🇺🇸 United States', gdp:'2.8%', inflation:'3.2%', unemployment:'3.9%', rate:'5.50%', debt:'123%'},
+    {country:'🇪🇺 Euro Area', gdp:'0.4%', inflation:'2.4%', unemployment:'6.4%', rate:'4.50%', debt:'90%'},
+    {country:'🇨🇳 China', gdp:'4.9%', inflation:'0.2%', unemployment:'5.0%', rate:'3.45%', debt:'77%'},
+    {country:'🇮🇳 India', gdp:'7.6%', inflation:'5.1%', unemployment:'7.2%', rate:'6.50%', debt:'83%'},
+    {country:'🇯🇵 Japan', gdp:'1.2%', inflation:'2.8%', unemployment:'2.5%', rate:'0.25%', debt:'255%'},
+    {country:'🇬🇧 United Kingdom', gdp:'0.6%', inflation:'4.0%', unemployment:'4.2%', rate:'5.25%', debt:'101%'},
+  ];
+  document.getElementById('econTable').innerHTML = `
+    <thead><tr><th>Country</th><th>GDP Growth</th><th>Inflation</th><th>Unemployment</th><th>Interest Rate</th><th>Debt/GDP</th></tr></thead>
+    <tbody>${data.map(d => `<tr><td>${d.country}</td><td>${d.gdp}</td><td>${d.inflation}</td><td>${d.unemployment}</td><td>${d.rate}</td><td>${d.debt}</td></tr>`).join('')}</tbody>
+  `;
+}
+
+function renderHeatmap() {
+  const regions = [
+    {name:'🇺🇸 US', index:'S&P 500', val: liveIndices[0].change},
+    {name:'🇪🇺 Europe', index:'STOXX 600', val: drift(0.25, 0.3)},
+    {name:'🇬🇧 UK', index:'FTSE 100', val: liveIndices[3].change},
+    {name:'🇩🇪 Germany', index:'DAX', val: liveIndices[5].change},
+    {name:'🇯🇵 Japan', index:'Nikkei', val: liveIndices[4].change},
+    {name:'🇨🇳 China', index:'SSE Comp', val: liveIndices[7].change},
+    {name:'🇭🇰 Hong Kong', index:'Hang Seng', val: liveIndices[6].change},
+    {name:'🇮🇳 India', index:'Sensex', val: liveIndices[8].change},
+    {name:'🇦🇺 Australia', index:'ASX 200', val: liveIndices[9].change},
+    {name:'🇧🇷 Brazil', index:'Bovespa', val: drift(-0.35, 0.4)},
+    {name:'🇰🇷 S. Korea', index:'KOSPI', val: drift(0.42, 0.3)},
+    {name:'🇨🇦 Canada', index:'TSX', val: drift(0.18, 0.2)},
+  ];
+  document.getElementById('heatmap').innerHTML = regions.map(r => {
+    const v = r.val;
+    const intensity = Math.min(1, Math.abs(v) / 3);
+    const bg = v >= 0
+      ? `rgba(34,197,94,${0.1 + intensity * 0.35})`
+      : `rgba(239,68,68,${0.1 + intensity * 0.35})`;
+    const border = v >= 0
+      ? `rgba(34,197,94,${0.2 + intensity * 0.3})`
+      : `rgba(239,68,68,${0.2 + intensity * 0.3})`;
+    return `<div class="heatmap-cell" style="background:${bg};border:1px solid ${border}">
+      <div class="region">${r.name}</div>
+      <div class="hm-value" style="color:${v >= 0 ? 'var(--green)' : 'var(--red)'}">${fmtPct(v)}</div>
+      <div class="hm-index">${r.index}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Ticker ───
+function renderTicker() {
+  const items = [
+    ...liveIndices.map(d => ({name: d.name, price: fmt(d.price), change: d.change})),
+    ...liveCrypto.map(d => ({name: d.symbol, price: '$' + fmt(d.price), change: d.change})),
+    ...liveComm.slice(0,3).map(d => ({name: d.name, price: fmt(d.price), change: d.change})),
+  ];
+  const html = items.map(i =>
+    `<div class="ticker-item"><span class="name">${i.name}</span><span class="price">${i.price}</span><span class="change ${changeClass(i.change)}">${fmtPct(i.change)}</span></div>`
+  ).join('');
+  document.getElementById('ticker').innerHTML = html + html; // duplicate for seamless loop
+}
+
+// ─── CoinGecko Fetch ───
+async function fetchCrypto() {
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,solana,ripple&vs_currencies=usd&include_24hr_change=true');
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    const map = {bitcoin:0, ethereum:1, binancecoin:2, solana:3, ripple:4};
+    Object.entries(map).forEach(([key, idx]) => {
+      if (data[key]) {
+        liveCrypto[idx].price = data[key].usd;
+        liveCrypto[idx].change = data[key].usd_24h_change || liveCrypto[idx].change;
+      }
+    });
+  } catch(e) {
+    // silently use simulated data
+    simulateTick(liveCrypto, 0.15);
+  }
+}
+
+// ─── Fear & Greed API ───
+async function fetchFearGreed() {
+  try {
+    const res = await fetch('https://api.alternative.me/fng/?limit=1');
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    if (data.data && data.data[0]) {
+      fgIndex = parseInt(data.data[0].value);
+    }
+  } catch(e) {
+    fgIndex = drift(fgIndex, 1);
+    fgIndex = Math.max(5, Math.min(95, fgIndex));
+  }
+}
+
+// ─── Main Update Loop ───
+const REFRESH_INTERVAL = 30; // seconds
+let refreshCounter = 0;
+
+async function fullUpdate() {
+  // Simulate ticks on non-API data
+  simulateTick(liveIndices, 0.06);
+  simulateTick(liveCurr, 0.02);
+  simulateTick(liveComm, 0.08);
+  simulateTick(liveBonds, 0.01);
+  vixValue = Math.max(9, Math.min(45, rand(vixValue, 0.3)));
+  fgIndex = Math.max(5, Math.min(95, drift(fgIndex, 0.5)));
+
+  // Fetch live data
+  await Promise.all([fetchCrypto(), fetchFearGreed()]);
+
+  // Render all
+  renderSection('indices', liveIndices);
+  renderSection('crypto', liveCrypto);
+  renderSection('currencies', liveCurr, 4);
+  renderSection('commodities', liveComm);
+  renderBonds();
+  renderFearGreed();
+  renderHeatmap();
+  renderTicker();
+
+  // Update timestamp
+  const now = new Date();
+  document.getElementById('lastUpdate').textContent =
+    'Updated: ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function startRefreshCycle() {
+  refreshCounter = 0;
+  const prog = document.getElementById('refreshProgress');
+  const label = document.getElementById('nextRefresh');
+
+  setInterval(() => {
+    refreshCounter++;
+    const pct = (refreshCounter / REFRESH_INTERVAL) * 100;
+    prog.style.width = pct + '%';
+    const remaining = REFRESH_INTERVAL - refreshCounter;
+    label.textContent = `Next refresh: ${remaining}s`;
+
+    if (refreshCounter >= REFRESH_INTERVAL) {
+      refreshCounter = 0;
+      prog.style.width = '0%';
+      fullUpdate();
+    }
+  }, 1000);
+}
+
+// ─── Init ───
+(async function init() {
+  renderEconomic(); // static
+  // seed sparkline data
+  for (let i = 0; i < 15; i++) {
+    liveIndices.forEach(d => pushSpark(d.id, rand(d.price, 0.05)));
+    liveCrypto.forEach(d => pushSpark(d.id, rand(d.price, 0.1)));
+    liveCurr.forEach(d => pushSpark(d.id, rand(d.price, 0.02)));
+    liveComm.forEach(d => pushSpark(d.id, rand(d.price, 0.06)));
+    liveBonds.forEach(d => pushSpark(d.id, rand(d.price, 0.01)));
+  }
+  await fullUpdate();
+  startRefreshCycle();
+})();
+</script>
+</body>
+</html>
