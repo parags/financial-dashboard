@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commodities — GlobalPulse</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary: #0a0e17; --bg-secondary: #111827; --bg-card: #1a1f2e; --border: #2a3045;
+  --text-primary: #e2e8f0; --text-secondary: #94a3b8; --text-muted: #64748b;
+  --green: #22c55e; --green-bg: rgba(34,197,94,0.1); --red: #ef4444; --red-bg: rgba(239,68,68,0.1);
+  --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.1); --yellow: #eab308; --purple: #a855f7; --cyan: #06b6d4; --orange: #f97316;
+  --gradient-card: linear-gradient(135deg, #1a1f2e 0%, #151a28 100%);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.3);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background: var(--bg-primary); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.page-header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width:40px;height:40px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700; }
+.logo h1 { font-size:22px;font-weight:700; } .logo h1 span { color:var(--blue); }
+.breadcrumb { font-size:13px; color:var(--text-muted); margin-top:6px; } .breadcrumb a { color:var(--blue); text-decoration:none; }
+.back-link { display:inline-flex;align-items:center;gap:6px;color:var(--blue);text-decoration:none;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;background:var(--blue-bg); }
+.container { max-width:1800px; margin:0 auto; padding:20px; }
+.section-title { font-size:18px; font-weight:700; margin:30px 0 16px; display:flex; align-items:center; gap:10px; }
+.card { background:var(--gradient-card); border:1px solid var(--border); border-radius:16px; padding:20px; box-shadow:var(--shadow-card); position:relative; overflow:hidden; transition:border-color 0.3s; }
+.card::before { content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--purple));opacity:0;transition:opacity 0.3s; }
+.card:hover::before { opacity:1; } .card:hover { border-color:rgba(59,130,246,0.3); }
+.card-title { font-size:14px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px; }
+.comm-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(350px,1fr)); gap:20px; }
+.comm-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.comm-name { font-size:18px; font-weight:700; display:flex; align-items:center; gap:10px; }
+.comm-price { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; }
+.comm-change { font-size:14px; font-weight:600; padding:4px 10px; border-radius:8px; }
+.comm-change.up { color:var(--green); background:var(--green-bg); }
+.comm-change.down { color:var(--red); background:var(--red-bg); }
+.chart-container { position:relative; height:160px; }
+.meta-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
+.meta-item { background:rgba(255,255,255,0.03); border-radius:8px; padding:8px 12px; }
+.meta-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
+.meta-value { font-size:13px; font-weight:600; margin-top:2px; }
+.futures-table { width:100%; border-collapse:separate; border-spacing:0 4px; font-size:13px; }
+.futures-table th { text-align:left; padding:8px 12px; color:var(--text-muted); font-weight:500; font-size:11px; text-transform:uppercase; }
+.futures-table td { padding:10px 12px; background:rgba(255,255,255,0.02); font-variant-numeric:tabular-nums; }
+.futures-table tr td:first-child { border-radius:8px 0 0 8px; font-weight:600; }
+.futures-table tr td:last-child { border-radius:0 8px 8px 0; }
+.supply-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+.supply-item { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; }
+.supply-item .sv { font-size:20px; font-weight:700; }
+.supply-item .sl { font-size:11px; color:var(--text-muted); margin-top:4px; text-transform:uppercase; }
+.indicator-bar { height:6px; border-radius:3px; background:var(--border); margin-top:8px; overflow:hidden; }
+.indicator-bar .fill { height:100%; border-radius:3px; transition:width 0.6s ease; }
+@keyframes fadeInUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.card { animation:fadeInUp 0.4s ease-out both; }
+@media (max-width:860px) { .comm-grid{grid-template-columns:1fr;} .container{padding:12px;} }
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div>
+    <div class="logo"><div class="logo-icon">G</div><h1>Global<span>Pulse</span></h1></div>
+    <div class="breadcrumb"><a href="index.html">Dashboard</a> &rsaquo; Commodities</div>
+  </div>
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+</div>
+
+<div class="container">
+  <!-- Precious Metals -->
+  <div class="section-title">🥇 Precious Metals</div>
+  <div class="comm-grid" id="metals"></div>
+
+  <!-- Energy -->
+  <div class="section-title">🛢️ Energy</div>
+  <div class="comm-grid" id="energy"></div>
+
+  <!-- Industrial & Agricultural -->
+  <div class="section-title">🌾 Industrial & Agricultural</div>
+  <div class="comm-grid" id="industrial"></div>
+
+  <!-- Supply/Demand Indicators -->
+  <div class="section-title" style="margin-top:30px;">📊 Supply & Demand Indicators</div>
+  <div class="card">
+    <div class="supply-grid" id="supplyGrid"></div>
+  </div>
+
+  <!-- Futures Contracts -->
+  <div class="section-title" style="margin-top:30px;">📋 Futures Contracts</div>
+  <div class="card" style="overflow-x:auto;">
+    <table class="futures-table" id="futuresTable"></table>
+  </div>
+</div>
+
+<script>
+const fmt=(n,d=2)=>Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtPct=n=>(n>=0?'+':'')+fmt(n)+'%';
+
+const commodities = {
+  metals: [
+    {id:'gold',name:'Gold',icon:'🥇',price:2652.40,change:0.38,unit:'/oz',high:'2,790.80',low:'1,984.20',open:2642.10,vol:'182K'},
+    {id:'silver',name:'Silver',icon:'🥈',price:30.58,change:0.95,unit:'/oz',high:'34.85',low:'22.15',open:30.28,vol:'98K'},
+    {id:'platinum',name:'Platinum',icon:'⬜',price:942.60,change:-0.34,unit:'/oz',high:'1,092.50',low:'850.40',open:945.80,vol:'24K'},
+    {id:'palladium',name:'Palladium',icon:'◻️',price:1028.40,change:-1.12,unit:'/oz',high:'1,345.00',low:'912.80',open:1040.20,vol:'8K'},
+  ],
+  energy: [
+    {id:'wti',name:'WTI Crude Oil',icon:'🛢️',price:71.24,change:-0.62,unit:'/bbl',high:'87.12',low:'63.64',open:71.68,vol:'1.2M'},
+    {id:'brent',name:'Brent Crude',icon:'🛢️',price:75.18,change:-0.48,unit:'/bbl',high:'92.18',low:'68.24',open:75.54,vol:'680K'},
+    {id:'natgas',name:'Natural Gas',icon:'🔥',price:3.284,change:1.42,unit:'/mmBtu',high:'4.210',low:'1.580',open:3.238,vol:'420K'},
+  ],
+  industrial: [
+    {id:'copper',name:'Copper',icon:'🔶',price:4.182,change:0.28,unit:'/lb',high:'5.020',low:'3.560',open:4.170,vol:'95K'},
+    {id:'aluminum',name:'Aluminum',icon:'🔷',price:2548.00,change:0.42,unit:'/MT',high:'2,780.00',low:'2,110.00',open:2538.00,vol:'32K'},
+    {id:'wheat',name:'Wheat',icon:'🌾',price:5.72,change:-0.85,unit:'/bu',high:'7.85',low:'5.18',open:5.77,vol:'68K'},
+    {id:'corn',name:'Corn',icon:'🌽',price:4.38,change:0.32,unit:'/bu',high:'5.92',low:'4.05',open:4.36,vol:'210K'},
+  ]
+};
+
+function genHistory(base, vol=0.8) {
+  const d=[]; let p=base*(1-vol/100*12);
+  for(let i=0;i<30;i++){p=p*(1+(Math.random()-0.47)*vol/100);d.push(p);}return d;
+}
+function genLabels(n=30) {
+  const l=[]; for(let i=n;i>0;i--){const d=new Date();d.setDate(d.getDate()-i);l.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));}return l;
+}
+const labels30 = genLabels(30);
+
+function renderCommoditySection(containerId, items) {
+  const grid = document.getElementById(containerId);
+  items.forEach((c, idx) => {
+    const dir = c.change>=0?'up':'down';
+    const color = c.change>=0?'#22c55e':'#ef4444';
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.animationDelay = (idx*0.05)+'s';
+    const decimals = c.price < 10 ? 3 : 2;
+    card.innerHTML = `
+      <div class="comm-top">
+        <div>
+          <div class="comm-name">${c.icon} ${c.name}</div>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px;">
+            <div class="comm-price">$${fmt(c.price,decimals)}<span style="font-size:14px;color:var(--text-muted)">${c.unit}</span></div>
+            <span class="comm-change ${dir}">${fmtPct(c.change)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="meta-row">
+        <div class="meta-item"><div class="meta-label">52W High</div><div class="meta-value">$${c.high}</div></div>
+        <div class="meta-item"><div class="meta-label">52W Low</div><div class="meta-value">$${c.low}</div></div>
+        <div class="meta-item"><div class="meta-label">Open</div><div class="meta-value">$${fmt(c.open,decimals)}</div></div>
+        <div class="meta-item"><div class="meta-label">Volume</div><div class="meta-value">${c.vol}</div></div>
+        <div class="meta-item"><div class="meta-label">Day Range</div><div class="meta-value">$${fmt(c.price*0.995,decimals)} - $${fmt(c.price*1.005,decimals)}</div></div>
+        <div class="meta-item"><div class="meta-label">Prev Close</div><div class="meta-value">$${fmt(c.open,decimals)}</div></div>
+      </div>
+      <div class="chart-container"><canvas id="chart-${c.id}"></canvas></div>
+    `;
+    grid.appendChild(card);
+    const hist = genHistory(c.price, c.id==='natgas'?2:0.8);
+    new Chart(card.querySelector('canvas'), {
+      type:'line',
+      data:{labels:labels30,datasets:[{data:hist,borderColor:color,backgroundColor:color+'18',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+        x:{ticks:{color:'#64748b',maxTicksLimit:6,font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},
+        y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}}
+      },interaction:{intersect:false,mode:'index'}}
+    });
+  });
+}
+
+renderCommoditySection('metals', commodities.metals);
+renderCommoditySection('energy', commodities.energy);
+renderCommoditySection('industrial', commodities.industrial);
+
+// Supply/Demand Indicators
+const indicators = [
+  {label:'Crude Oil Inventories',value:'-2.1M bbl',level:42,color:'var(--orange)',note:'Drawdown - Bullish'},
+  {label:'Gold ETF Holdings',value:'2,648 tonnes',level:65,color:'var(--yellow)',note:'Increasing inflows'},
+  {label:'Copper Warehouse Stocks',value:'148K MT',level:35,color:'var(--cyan)',note:'Below average'},
+  {label:'OPEC Compliance',value:'94.2%',level:94,color:'var(--green)',note:'High compliance'},
+  {label:'US Rig Count',value:'584',level:55,color:'var(--blue)',note:'Stable week-over-week'},
+  {label:'India Gold Imports',value:'$4.2B/mo',level:72,color:'var(--purple)',note:'Festival season demand'},
+];
+document.getElementById('supplyGrid').innerHTML = indicators.map(i => `
+  <div class="supply-item">
+    <div class="sv" style="color:${i.color}">${i.value}</div>
+    <div class="sl">${i.label}</div>
+    <div class="indicator-bar"><div class="fill" style="width:${i.level}%;background:${i.color}"></div></div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${i.note}</div>
+  </div>
+`).join('');
+
+// Futures
+const futures = [
+  {name:'Gold (GC)',exchange:'COMEX',expiry:'Feb 2025',last:'$2,658.40',chg:'+0.42%',oi:'482K',settle:'$2,647.80'},
+  {name:'Silver (SI)',exchange:'COMEX',expiry:'Mar 2025',last:'$30.72',chg:'+0.88%',oi:'142K',settle:'$30.45'},
+  {name:'WTI Crude (CL)',exchange:'NYMEX',expiry:'Jan 2025',last:'$71.42',chg:'-0.58%',oi:'1.8M',settle:'$71.84'},
+  {name:'Brent (BZ)',exchange:'ICE',expiry:'Feb 2025',last:'$75.34',chg:'-0.42%',oi:'580K',settle:'$75.66'},
+  {name:'Natural Gas (NG)',exchange:'NYMEX',expiry:'Jan 2025',last:'$3.298',chg:'+1.35%',oi:'1.2M',settle:'$3.254'},
+  {name:'Copper (HG)',exchange:'COMEX',expiry:'Mar 2025',last:'$4.195',chg:'+0.32%',oi:'210K',settle:'$4.182'},
+  {name:'Wheat (ZW)',exchange:'CBOT',expiry:'Mar 2025',last:'$5.74',chg:'-0.78%',oi:'380K',settle:'$5.78'},
+  {name:'Corn (ZC)',exchange:'CBOT',expiry:'Mar 2025',last:'$4.40',chg:'+0.28%',oi:'1.4M',settle:'$4.38'},
+  {name:'Gold Mini (India)',exchange:'MCX',expiry:'Feb 2025',last:'₹62,450',chg:'+0.35%',oi:'24K',settle:'₹62,232'},
+  {name:'Crude Oil (India)',exchange:'MCX',expiry:'Jan 2025',last:'₹5,985',chg:'-0.52%',oi:'18K',settle:'₹6,016'},
+];
+document.getElementById('futuresTable').innerHTML = `
+  <thead><tr><th>Contract</th><th>Exchange</th><th>Expiry</th><th>Last</th><th>Change</th><th>Open Interest</th><th>Settle</th></tr></thead>
+  <tbody>${futures.map(f=>{
+    const cls = f.chg.startsWith('+')?'color:var(--green)':'color:var(--red)';
+    return `<tr><td>${f.name}</td><td style="color:var(--text-muted)">${f.exchange}</td><td>${f.expiry}</td><td>${f.last}</td><td style="${cls}">${f.chg}</td><td>${f.oi}</td><td style="color:var(--text-muted)">${f.settle}</td></tr>`;
+  }).join('')}</tbody>
+`;
+</script>
+</body>
+</html>

@@ -119,12 +119,36 @@ header {
   font-size: 13px;
   color: var(--text-secondary);
 }
-.status-dot {
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(34,197,94,0.15);
+  border: 1px solid rgba(34,197,94,0.3);
+  color: var(--green);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.live-badge .status-dot {
   width: 8px; height: 8px;
   background: var(--green);
   border-radius: 50%;
   display: inline-block;
   animation: pulse 2s infinite;
+}
+.data-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.05);
+  padding: 3px 8px;
+  border-radius: 12px;
 }
 @keyframes pulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
@@ -248,6 +272,17 @@ header {
 .change.down { color: var(--red); background: var(--red-bg); }
 .sparkline-container { width: 60px; height: 28px; }
 
+/* Live/Simulated indicator dot */
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.live-dot.live { background: var(--green); box-shadow: 0 0 4px rgba(34,197,94,0.5); }
+.live-dot.simulated { background: #4b5563; }
+
 /* Gauge */
 .gauge-container {
   display: flex;
@@ -336,6 +371,29 @@ header {
   margin-top: 12px;
 }
 
+/* Footer */
+.dashboard-footer {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 11px;
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.dashboard-footer .source-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.04);
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+
 /* Animations */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(10px); }
@@ -383,7 +441,8 @@ header {
     <h1>Global<span>Pulse</span></h1>
   </div>
   <div class="header-meta">
-    <span><span class="status-dot"></span> Live</span>
+    <span class="live-badge"><span class="status-dot"></span> Live Data</span>
+    <span class="data-source-badge">📡 <span id="liveCount">0</span> live feeds</span>
     <span id="lastUpdate">--</span>
     <span id="nextRefresh">Next refresh: 30s</span>
   </div>
@@ -464,6 +523,14 @@ header {
   </div>
 </div>
 
+<!-- Footer -->
+<div class="dashboard-footer">
+  <span class="source-tag">🟢 Live</span> = real-time API data
+  <span class="source-tag">⚫ Sim</span> = simulated
+  <span>|</span>
+  <span class="source-tag">Sources: Yahoo Finance · CoinGecko · ExchangeRate API · Alternative.me</span>
+</div>
+
 <script>
 // ─── Utilities ───
 const fmt = (n, d=2) => n != null ? Number(n).toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d}) : '--';
@@ -471,6 +538,10 @@ const fmtPct = (n) => n != null ? (n >= 0 ? '+' : '') + fmt(n) + '%' : '--';
 const changeClass = (n) => n >= 0 ? 'up' : 'down';
 const rand = (base, pct=0.3) => base * (1 + (Math.random() - 0.5) * 2 * pct / 100);
 const drift = (base, pct=0.05) => base + (Math.random() - 0.48) * pct;
+
+// ─── Live data tracking ───
+const liveStatus = {}; // key -> true if last fetch was live
+let totalLiveFeeds = 0;
 
 // ─── Sparkline Data Store ───
 const sparkData = {};
@@ -497,7 +568,6 @@ function drawSparkline(canvas, data, up) {
     i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
   });
   ctx.stroke();
-  // gradient fill
   const last = data[data.length-1];
   const ly = h - ((last - min) / range) * h * 0.8 - h * 0.1;
   ctx.lineTo(w, h);
@@ -514,8 +584,11 @@ function drawSparkline(canvas, data, up) {
 function renderRow(id, label, price, change, priceFmt, flag='') {
   pushSpark(id, price);
   const dir = changeClass(change);
+  const isLive = liveStatus[id] === true;
+  const dotClass = isLive ? 'live' : 'simulated';
+  const dotTitle = isLive ? 'Live data' : 'Simulated';
   return `<div class="data-row" id="row-${id}">
-    <div class="label">${flag ? '<span class="flag">'+flag+'</span>' : ''}${label}</div>
+    <div class="label"><span class="live-dot ${dotClass}" title="${dotTitle}"></span>${flag ? '<span class="flag">'+flag+'</span>' : ''}${label}</div>
     <div class="values">
       <canvas class="sparkline-container" id="spark-${id}"></canvas>
       <span class="price">${priceFmt}</span>
@@ -524,45 +597,114 @@ function renderRow(id, label, price, change, priceFmt, flag='') {
   </div>`;
 }
 
-// ─── Simulated Market Data ───
+// ─── Yahoo Finance API ───
+const YAHOO_SYMBOLS = {
+  // Indices
+  sp500: '%5EGSPC',
+  nasdaq: '%5EIXIC',
+  djia: '%5EDJI',
+  sensex: '%5EBSESN',
+  nifty50: '%5ENSEI',
+  ftse: '%5EFTSE',
+  nikkei: '%5EN225',
+  dax: '%5EGDAXI',
+  hsi: '%5EHSI',
+  sse: '000001.SS',
+  asx: '%5EAXJO',
+  // Commodities
+  gold: 'GC%3DF',
+  silver: 'SI%3DF',
+  wti: 'CL%3DF',
+  brent: 'BZ%3DF',
+  natgas: 'NG%3DF',
+  copper: 'HG%3DF',
+  platinum: 'PL%3DF',
+  // Bonds
+  us10y: '%5ETNX',
+  us2y: '%5EIRX',
+  us30y: '%5ETYX',
+  // Volatility
+  vix: '%5EVIX',
+};
+
+async function fetchYahooQuote(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
+  const data = await res.json();
+  const meta = data.chart.result[0].meta;
+  const price = meta.regularMarketPrice;
+  const prevClose = meta.chartPreviousClose;
+  const changePct = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+  return { price, changePct };
+}
+
+// Batch Yahoo requests in groups to avoid rate limiting
+async function fetchYahooBatch(ids) {
+  const BATCH_SIZE = 4;
+  const DELAY_MS = 300;
+  const results = {};
+  const entries = ids.map(id => [id, YAHOO_SYMBOLS[id]]);
+
+  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+    const batch = entries.slice(i, i + BATCH_SIZE);
+    const promises = batch.map(async ([id, sym]) => {
+      try {
+        const data = await fetchYahooQuote(sym);
+        results[id] = data;
+        liveStatus[id] = true;
+      } catch (e) {
+        liveStatus[id] = false;
+      }
+    });
+    await Promise.allSettled(promises);
+    if (i + BATCH_SIZE < entries.length) {
+      await new Promise(r => setTimeout(r, DELAY_MS));
+    }
+  }
+  return results;
+}
+
+// ─── Simulated Market Data (updated base prices) ───
 const indicesBase = [
-  {id:'sp500', name:'S&P 500', flag:'🇺🇸', price:5924.50, change:0.42},
-  {id:'nasdaq', name:'NASDAQ', flag:'🇺🇸', price:19210.18, change:0.68},
-  {id:'djia', name:'Dow Jones', flag:'🇺🇸', price:43548.72, change:0.21},
-  {id:'ftse', name:'FTSE 100', flag:'🇬🇧', price:8312.56, change:-0.15},
-  {id:'nikkei', name:'Nikkei 225', flag:'🇯🇵', price:38924.18, change:0.85},
-  {id:'dax', name:'DAX', flag:'🇩🇪', price:19254.30, change:0.33},
-  {id:'hsi', name:'Hang Seng', flag:'🇭🇰', price:19630.45, change:-0.52},
-  {id:'sse', name:'Shanghai Comp', flag:'🇨🇳', price:3096.78, change:-0.18},
-  {id:'sensex', name:'BSE Sensex', flag:'🇮🇳', price:80248.65, change:0.71},
-  {id:'asx', name:'ASX 200', flag:'🇦🇺', price:8198.30, change:0.29},
+  {id:'sp500', name:'S&P 500', flag:'🇺🇸', price:6943, change:0.42},
+  {id:'nasdaq', name:'NASDAQ', flag:'🇺🇸', price:20200, change:0.68},
+  {id:'djia', name:'Dow Jones', flag:'🇺🇸', price:44800, change:0.21},
+  {id:'ftse', name:'FTSE 100', flag:'🇬🇧', price:8600, change:-0.15},
+  {id:'nikkei', name:'Nikkei 225', flag:'🇯🇵', price:38500, change:0.85},
+  {id:'dax', name:'DAX', flag:'🇩🇪', price:24100, change:0.33},
+  {id:'hsi', name:'Hang Seng', flag:'🇭🇰', price:23500, change:-0.52},
+  {id:'sse', name:'Shanghai Comp', flag:'🇨🇳', price:3380, change:-0.18},
+  {id:'sensex', name:'BSE Sensex', flag:'🇮🇳', price:83675, change:0.71},
+  {id:'nifty50', name:'Nifty 50', flag:'🇮🇳', price:25400, change:0.65},
+  {id:'asx', name:'ASX 200', flag:'🇦🇺', price:8400, change:0.29},
 ];
 const currBase = [
-  {id:'eurusd', name:'EUR/USD', flag:'🇪🇺', price:1.0380, change:0.12, invert:'EUR'},
-  {id:'gbpusd', name:'GBP/USD', flag:'🇬🇧', price:1.2435, change:-0.08, invert:'GBP'},
-  {id:'usdjpy', name:'USD/JPY', flag:'🇯🇵', price:153.32, change:0.23, apiKey:'JPY'},
-  {id:'usdchf', name:'USD/CHF', flag:'🇨🇭', price:0.9042, change:0.05, apiKey:'CHF'},
-  {id:'usdinr', name:'USD/INR', flag:'🇮🇳', price:86.70, change:0.03, apiKey:'INR'},
-  {id:'usdcny', name:'USD/CNY', flag:'🇨🇳', price:7.2850, change:-0.11, apiKey:'CNY'},
-  {id:'audusd', name:'AUD/USD', flag:'🇦🇺', price:0.6285, change:-0.22, invert:'AUD'},
-  {id:'usdcad', name:'USD/CAD', flag:'🇨🇦', price:1.4312, change:0.14, apiKey:'CAD'},
+  {id:'eurusd', name:'EUR/USD', flag:'🇪🇺', price:1.1280, change:0.12, invert:'EUR'},
+  {id:'gbpusd', name:'GBP/USD', flag:'🇬🇧', price:1.3380, change:-0.08, invert:'GBP'},
+  {id:'usdjpy', name:'USD/JPY', flag:'🇯🇵', price:143.50, change:0.23, apiKey:'JPY'},
+  {id:'usdchf', name:'USD/CHF', flag:'🇨🇭', price:0.8280, change:0.05, apiKey:'CHF'},
+  {id:'usdinr', name:'USD/INR', flag:'🇮🇳', price:85.60, change:0.03, apiKey:'INR'},
+  {id:'usdcny', name:'USD/CNY', flag:'🇨🇳', price:7.2050, change:-0.11, apiKey:'CNY'},
+  {id:'audusd', name:'AUD/USD', flag:'🇦🇺', price:0.6480, change:-0.22, invert:'AUD'},
+  {id:'usdcad', name:'USD/CAD', flag:'🇨🇦', price:1.3850, change:0.14, apiKey:'CAD'},
 ];
 const commBase = [
-  {id:'gold', name:'Gold', flag:'🥇', price:2652.40, change:0.38},
-  {id:'silver', name:'Silver', flag:'🥈', price:30.58, change:0.95},
-  {id:'wti', name:'Crude Oil (WTI)', flag:'🛢️', price:71.24, change:-0.62},
-  {id:'brent', name:'Brent Crude', flag:'🛢️', price:75.18, change:-0.48},
-  {id:'natgas', name:'Natural Gas', flag:'🔥', price:3.284, change:1.42},
-  {id:'copper', name:'Copper', flag:'🔶', price:4.182, change:0.28},
-  {id:'platinum', name:'Platinum', flag:'⬜', price:942.60, change:-0.34},
+  {id:'gold', name:'Gold', flag:'🥇', price:5076, change:0.38},
+  {id:'silver', name:'Silver', flag:'🥈', price:82.81, change:0.95},
+  {id:'wti', name:'Crude Oil (WTI)', flag:'🛢️', price:64.09, change:-0.62},
+  {id:'brent', name:'Brent Crude', flag:'🛢️', price:68.82, change:-0.48},
+  {id:'natgas', name:'Natural Gas', flag:'🔥', price:3.31, change:1.42},
+  {id:'copper', name:'Copper', flag:'🔶', price:5.97, change:0.28},
+  {id:'platinum', name:'Platinum', flag:'⬜', price:2119, change:-0.34},
 ];
 const bondBase = [
-  {id:'us10y', name:'US 10Y', flag:'🇺🇸', price:4.428, change:0.02},
-  {id:'us2y', name:'US 2Y', flag:'🇺🇸', price:4.312, change:-0.01},
-  {id:'us30y', name:'US 30Y', flag:'🇺🇸', price:4.586, change:0.03},
-  {id:'de10y', name:'German 10Y', flag:'🇩🇪', price:2.348, change:-0.02},
-  {id:'uk10y', name:'UK 10Y', flag:'🇬🇧', price:4.512, change:0.01},
-  {id:'jp10y', name:'Japan 10Y', flag:'🇯🇵', price:1.068, change:0.005},
+  {id:'us10y', name:'US 10Y', flag:'🇺🇸', price:4.45, change:0.02},
+  {id:'us2y', name:'US 2Y', flag:'🇺🇸', price:3.96, change:-0.01},
+  {id:'us30y', name:'US 30Y', flag:'🇺🇸', price:4.92, change:0.03},
+  {id:'de10y', name:'German 10Y', flag:'🇩🇪', price:2.68, change:-0.02},
+  {id:'uk10y', name:'UK 10Y', flag:'🇬🇧', price:4.65, change:0.01},
+  {id:'jp10y', name:'Japan 10Y', flag:'🇯🇵', price:1.38, change:0.005},
 ];
 
 // live state
@@ -571,21 +713,45 @@ let liveCurr = JSON.parse(JSON.stringify(currBase));
 let liveComm = JSON.parse(JSON.stringify(commBase));
 let liveBonds = JSON.parse(JSON.stringify(bondBase));
 let liveCrypto = [
-  {id:'bitcoin', name:'Bitcoin', flag:'₿', price:97420, change:2.15, symbol:'BTC'},
-  {id:'ethereum', name:'Ethereum', flag:'Ξ', price:3642, change:1.82, symbol:'ETH'},
-  {id:'binancecoin', name:'BNB', flag:'◆', price:642.8, change:0.65, symbol:'BNB'},
-  {id:'solana', name:'Solana', flag:'◎', price:242.5, change:3.45, symbol:'SOL'},
-  {id:'ripple', name:'XRP', flag:'✕', price:2.38, change:5.21, symbol:'XRP'},
+  {id:'bitcoin', name:'Bitcoin', flag:'₿', price:103000, change:2.15, symbol:'BTC'},
+  {id:'ethereum', name:'Ethereum', flag:'Ξ', price:2650, change:1.82, symbol:'ETH'},
+  {id:'binancecoin', name:'BNB', flag:'◆', price:660, change:0.65, symbol:'BNB'},
+  {id:'solana', name:'Solana', flag:'◎', price:172, change:3.45, symbol:'SOL'},
+  {id:'ripple', name:'XRP', flag:'✕', price:2.44, change:5.21, symbol:'XRP'},
 ];
 let fgIndex = 62;
-let vixValue = 14.8;
+let vixValue = 17.3;
 
 function simulateTick(arr, volatility=0.08) {
   arr.forEach(item => {
+    // Only simulate items that aren't getting live data
+    if (liveStatus[item.id]) return;
     item.price = rand(item.price, volatility);
     item.change = drift(item.change, 0.02);
     item.change = Math.max(-9.9, Math.min(9.9, item.change));
   });
+}
+
+// Apply Yahoo data to our arrays
+function applyYahooData(yahooResults) {
+  const applyTo = (arr) => {
+    arr.forEach(item => {
+      if (yahooResults[item.id]) {
+        item.price = yahooResults[item.id].price;
+        item.change = yahooResults[item.id].changePct;
+      }
+    });
+  };
+  applyTo(liveIndices);
+  applyTo(liveComm);
+  applyTo(liveBonds);
+  // VIX special handling
+  if (yahooResults.vix) {
+    vixValue = yahooResults.vix.price;
+    liveStatus.vix = true;
+  } else {
+    liveStatus.vix = false;
+  }
 }
 
 // ─── Rendering ───
@@ -594,7 +760,6 @@ function renderSection(containerId, data, priceDecimals=2) {
   el.innerHTML = data.map(d =>
     renderRow(d.id, d.name, d.price, d.change, fmt(d.price, priceDecimals), d.flag)
   ).join('');
-  // draw sparklines after DOM update
   requestAnimationFrame(() => {
     data.forEach(d => {
       const c = document.getElementById('spark-' + d.id);
@@ -645,7 +810,6 @@ function renderYieldCurve() {
 }
 
 function renderFearGreed() {
-  // gauge
   const pct = fgIndex / 100;
   const arc = document.getElementById('gaugeArc');
   const needle = document.getElementById('gaugeNeedle');
@@ -660,14 +824,17 @@ function renderFearGreed() {
   document.getElementById('fgValue').style.color = colors[li];
   document.getElementById('fgText').textContent = labels[li];
 
-  // stats
+  const isVixLive = liveStatus.vix;
+  const vixDotClass = isVixLive ? 'live' : 'simulated';
+  const fgLive = liveStatus.feargreed;
+  const fgDotClass = fgLive ? 'live' : 'simulated';
   const putCall = (0.82 + Math.random() * 0.3).toFixed(2);
   const advDec = (1.1 + Math.random() * 0.8).toFixed(2);
   document.getElementById('vixStats').innerHTML = `
-    <div class="vix-stat"><div class="vix-val" style="color:${vixValue > 20 ? 'var(--red)' : vixValue > 15 ? 'var(--yellow)' : 'var(--green)'}">${fmt(vixValue,2)}</div><div class="vix-label">VIX Index</div></div>
-    <div class="vix-stat"><div class="vix-val">${putCall}</div><div class="vix-label">Put/Call Ratio</div></div>
-    <div class="vix-stat"><div class="vix-val" style="color:var(--blue)">${advDec}</div><div class="vix-label">Adv/Dec Ratio</div></div>
-    <div class="vix-stat"><div class="vix-val" style="color:var(--purple)">${Math.round(fgIndex)}</div><div class="vix-label">Fear & Greed</div></div>
+    <div class="vix-stat"><div class="vix-val" style="color:${vixValue > 20 ? 'var(--red)' : vixValue > 15 ? 'var(--yellow)' : 'var(--green)'}">${fmt(vixValue,2)}</div><div class="vix-label"><span class="live-dot ${vixDotClass}" title="${isVixLive ? 'Live' : 'Simulated'}"></span> VIX Index</div></div>
+    <div class="vix-stat"><div class="vix-val">${putCall}</div><div class="vix-label"><span class="live-dot simulated" title="Simulated"></span> Put/Call Ratio</div></div>
+    <div class="vix-stat"><div class="vix-val" style="color:var(--blue)">${advDec}</div><div class="vix-label"><span class="live-dot simulated" title="Simulated"></span> Adv/Dec Ratio</div></div>
+    <div class="vix-stat"><div class="vix-val" style="color:var(--purple)">${Math.round(fgIndex)}</div><div class="vix-label"><span class="live-dot ${fgDotClass}" title="${fgLive ? 'Live' : 'Simulated'}"></span> Fear & Greed</div></div>
   `;
 }
 
@@ -687,16 +854,17 @@ function renderEconomic() {
 }
 
 function renderHeatmap() {
+  const findIdx = (id) => liveIndices.find(i => i.id === id);
   const regions = [
-    {name:'🇺🇸 US', index:'S&P 500', val: liveIndices[0].change},
+    {name:'🇺🇸 US', index:'S&P 500', val: findIdx('sp500')?.change || 0},
     {name:'🇪🇺 Europe', index:'STOXX 600', val: drift(0.25, 0.3)},
-    {name:'🇬🇧 UK', index:'FTSE 100', val: liveIndices[3].change},
-    {name:'🇩🇪 Germany', index:'DAX', val: liveIndices[5].change},
-    {name:'🇯🇵 Japan', index:'Nikkei', val: liveIndices[4].change},
-    {name:'🇨🇳 China', index:'SSE Comp', val: liveIndices[7].change},
-    {name:'🇭🇰 Hong Kong', index:'Hang Seng', val: liveIndices[6].change},
-    {name:'🇮🇳 India', index:'Sensex', val: liveIndices[8].change},
-    {name:'🇦🇺 Australia', index:'ASX 200', val: liveIndices[9].change},
+    {name:'🇬🇧 UK', index:'FTSE 100', val: findIdx('ftse')?.change || 0},
+    {name:'🇩🇪 Germany', index:'DAX', val: findIdx('dax')?.change || 0},
+    {name:'🇯🇵 Japan', index:'Nikkei', val: findIdx('nikkei')?.change || 0},
+    {name:'🇨🇳 China', index:'SSE Comp', val: findIdx('sse')?.change || 0},
+    {name:'🇭🇰 Hong Kong', index:'Hang Seng', val: findIdx('hsi')?.change || 0},
+    {name:'🇮🇳 India', index:'Sensex', val: findIdx('sensex')?.change || 0},
+    {name:'🇦🇺 Australia', index:'ASX 200', val: findIdx('asx')?.change || 0},
     {name:'🇧🇷 Brazil', index:'Bovespa', val: drift(-0.35, 0.4)},
     {name:'🇰🇷 S. Korea', index:'KOSPI', val: drift(0.42, 0.3)},
     {name:'🇨🇦 Canada', index:'TSX', val: drift(0.18, 0.2)},
@@ -728,7 +896,7 @@ function renderTicker() {
   const html = items.map(i =>
     `<div class="ticker-item"><span class="name">${i.name}</span><span class="price">${i.price}</span><span class="change ${changeClass(i.change)}">${fmtPct(i.change)}</span></div>`
   ).join('');
-  document.getElementById('ticker').innerHTML = html + html; // duplicate for seamless loop
+  document.getElementById('ticker').innerHTML = html + html;
 }
 
 // ─── CoinGecko Fetch ───
@@ -742,11 +910,12 @@ async function fetchCrypto() {
       if (data[key]) {
         liveCrypto[idx].price = data[key].usd;
         liveCrypto[idx].change = data[key].usd_24h_change || liveCrypto[idx].change;
+        liveStatus[liveCrypto[idx].id] = true;
       }
     });
   } catch(e) {
-    // silently use simulated data
     simulateTick(liveCrypto, 0.15);
+    liveCrypto.forEach(c => liveStatus[c.id] = false);
   }
 }
 
@@ -758,17 +927,16 @@ async function fetchFearGreed() {
     const data = await res.json();
     if (data.data && data.data[0]) {
       fgIndex = parseInt(data.data[0].value);
+      liveStatus.feargreed = true;
     }
   } catch(e) {
     fgIndex = drift(fgIndex, 1);
     fgIndex = Math.max(5, Math.min(95, fgIndex));
+    liveStatus.feargreed = false;
   }
 }
 
-// ─── Main Update Loop ───
-const REFRESH_INTERVAL = 30; // seconds
-let refreshCounter = 0;
-
+// ─── Forex Fetch ───
 async function fetchForexRates() {
   try {
     const res = await fetch('https://open.er-api.com/v6/latest/USD');
@@ -779,26 +947,67 @@ async function fetchForexRates() {
           const newPrice = +(1 / data.rates[c.invert]).toFixed(4);
           c.change = +((newPrice - c.price) / c.price * 100).toFixed(2);
           c.price = newPrice;
+          liveStatus[c.id] = true;
         } else if (c.apiKey && data.rates[c.apiKey]) {
           const newPrice = +(data.rates[c.apiKey]).toFixed(c.apiKey === 'INR' || c.apiKey === 'JPY' ? 2 : 4);
           c.change = +((newPrice - c.price) / c.price * 100).toFixed(2);
           c.price = newPrice;
+          liveStatus[c.id] = true;
         }
       });
     }
-  } catch(e) { console.warn('Forex API fallback to simulation', e); }
+  } catch(e) {
+    console.warn('Forex API fallback to simulation', e);
+    liveCurr.forEach(c => liveStatus[c.id] = false);
+  }
 }
 
+// ─── Fetch all Yahoo Finance data ───
+async function fetchAllYahooData() {
+  const allIds = Object.keys(YAHOO_SYMBOLS);
+  try {
+    const results = await fetchYahooBatch(allIds);
+    applyYahooData(results);
+    return results;
+  } catch (e) {
+    console.warn('Yahoo Finance batch failed:', e);
+    allIds.forEach(id => liveStatus[id] = false);
+    return {};
+  }
+}
+
+// Count live feeds
+function updateLiveCount() {
+  totalLiveFeeds = Object.values(liveStatus).filter(v => v === true).length;
+  const el = document.getElementById('liveCount');
+  if (el) el.textContent = totalLiveFeeds;
+}
+
+// ─── Main Update Loop ───
+const REFRESH_INTERVAL = 30;
+let refreshCounter = 0;
+
 async function fullUpdate() {
-  // Simulate ticks on non-API data
+  // Simulate ticks for non-live data
   simulateTick(liveIndices, 0.06);
   simulateTick(liveComm, 0.08);
   simulateTick(liveBonds, 0.01);
-  vixValue = Math.max(9, Math.min(45, rand(vixValue, 0.3)));
-  fgIndex = Math.max(5, Math.min(95, drift(fgIndex, 0.5)));
+  if (!liveStatus.vix) {
+    vixValue = Math.max(9, Math.min(45, rand(vixValue, 0.3)));
+  }
+  if (!liveStatus.feargreed) {
+    fgIndex = Math.max(5, Math.min(95, drift(fgIndex, 0.5)));
+  }
 
-  // Fetch live data (forex, crypto, fear&greed)
-  await Promise.all([fetchForexRates(), fetchCrypto(), fetchFearGreed()]);
+  // Fetch all live data in parallel
+  await Promise.allSettled([
+    fetchAllYahooData(),
+    fetchForexRates(),
+    fetchCrypto(),
+    fetchFearGreed()
+  ]);
+
+  updateLiveCount();
 
   // Render all
   renderSection('indices', liveIndices);
@@ -810,7 +1019,6 @@ async function fullUpdate() {
   renderHeatmap();
   renderTicker();
 
-  // Update timestamp
   const now = new Date();
   document.getElementById('lastUpdate').textContent =
     'Updated: ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -838,7 +1046,7 @@ function startRefreshCycle() {
 
 // ─── Init ───
 (async function init() {
-  renderEconomic(); // static
+  renderEconomic();
   // seed sparkline data
   for (let i = 0; i < 15; i++) {
     liveIndices.forEach(d => pushSpark(d.id, rand(d.price, 0.05)));

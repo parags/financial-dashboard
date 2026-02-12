@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fear & Greed / Volatility — GlobalPulse</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary:#0a0e17;--bg-secondary:#111827;--bg-card:#1a1f2e;--border:#2a3045;
+  --text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;
+  --green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--yellow:#eab308;--purple:#a855f7;--cyan:#06b6d4;--orange:#f97316;
+  --gradient-card:linear-gradient(135deg,#1a1f2e 0%,#151a28 100%);--shadow-card:0 4px 24px rgba(0,0,0,0.3);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg-primary)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.page-header{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:20px 30px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+.logo h1{font-size:22px;font-weight:700}.logo h1 span{color:var(--blue)}
+.breadcrumb{font-size:13px;color:var(--text-muted);margin-top:6px}.breadcrumb a{color:var(--blue);text-decoration:none}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--blue);text-decoration:none;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;background:var(--blue-bg)}
+.container{max-width:1800px;margin:0 auto;padding:20px}
+.section-title{font-size:18px;font-weight:700;margin:30px 0 16px;display:flex;align-items:center;gap:10px}
+.card{background:var(--gradient-card);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow-card);position:relative;overflow:hidden;transition:border-color 0.3s}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--purple));opacity:0;transition:opacity 0.3s}
+.card:hover::before{opacity:1}.card:hover{border-color:rgba(59,130,246,0.3)}
+.card-title{font-size:14px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.chart-container{position:relative;height:250px}
+.chart-container-lg{position:relative;height:300px}
+
+/* Large Gauge */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:20px 0}
+.gauge-svg-lg{max-width:360px;width:100%}
+.gauge-big-val{font-size:56px;font-weight:800;margin-top:12px;transition:color 0.5s}
+.gauge-big-text{font-size:20px;font-weight:600;margin-top:4px;transition:color 0.5s}
+.gauge-sub{font-size:13px;color:var(--text-muted);margin-top:8px}
+
+/* Component bars */
+.component{margin-bottom:16px}
+.comp-header{display:flex;justify-content:space-between;margin-bottom:6px}
+.comp-label{font-size:13px;font-weight:500;color:var(--text-secondary)}
+.comp-value{font-size:13px;font-weight:700}
+.comp-bar{height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden}
+.comp-bar .fill{height:100%;border-radius:4px;transition:width 1s ease}
+.comp-desc{font-size:11px;color:var(--text-muted);margin-top:4px}
+
+/* Breadth */
+.breadth-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.breadth-item{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+.breadth-item .bv{font-size:24px;font-weight:700}
+.breadth-item .bl{font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-top:4px}
+
+/* VIX stats */
+.vix-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.vix-stat{background:rgba(255,255,255,0.03);border-radius:10px;padding:14px;text-align:center}
+.vix-stat .vv{font-size:22px;font-weight:700}
+.vix-stat .vl{font-size:11px;color:var(--text-muted);margin-top:4px;text-transform:uppercase}
+
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.card{animation:fadeInUp 0.4s ease-out both}
+@keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 8px rgba(59,130,246,0.3))}50%{filter:drop-shadow(0 0 20px rgba(59,130,246,0.6))}}
+.gauge-svg-lg{animation:pulseGlow 3s ease-in-out infinite}
+@media(max-width:860px){.grid-2{grid-template-columns:1fr}.vix-grid{grid-template-columns:repeat(2,1fr)}.container{padding:12px}}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div>
+    <div class="logo"><div class="logo-icon">G</div><h1>Global<span>Pulse</span></h1></div>
+    <div class="breadcrumb"><a href="index.html">Dashboard</a> &rsaquo; Fear & Greed / Volatility</div>
+  </div>
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+</div>
+
+<div class="container">
+  <!-- Large Gauge -->
+  <div class="card" style="max-width:600px;margin:0 auto 30px;">
+    <div class="gauge-wrap">
+      <svg class="gauge-svg-lg" viewBox="0 0 200 120">
+        <defs>
+          <linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#ef4444"/>
+            <stop offset="25%" style="stop-color:#f97316"/>
+            <stop offset="50%" style="stop-color:#eab308"/>
+            <stop offset="75%" style="stop-color:#84cc16"/>
+            <stop offset="100%" style="stop-color:#22c55e"/>
+          </linearGradient>
+        </defs>
+        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#1e293b" stroke-width="16" stroke-linecap="round"/>
+        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gg)" stroke-width="16" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="251" id="gaugeArc"/>
+        <line x1="100" y1="100" x2="100" y2="28" stroke="var(--text-primary)" stroke-width="3" stroke-linecap="round" id="gaugeNeedle" transform="rotate(-90,100,100)"/>
+        <circle cx="100" cy="100" r="6" fill="var(--text-primary)"/>
+        <!-- Scale labels -->
+        <text x="18" y="115" font-size="7" fill="#64748b">0</text>
+        <text x="28" y="55" font-size="7" fill="#64748b">25</text>
+        <text x="92" y="25" font-size="7" fill="#64748b">50</text>
+        <text x="160" y="55" font-size="7" fill="#64748b">75</text>
+        <text x="172" y="115" font-size="7" fill="#64748b">100</text>
+      </svg>
+      <div class="gauge-big-val" id="fgValue">--</div>
+      <div class="gauge-big-text" id="fgText">Loading...</div>
+      <div class="gauge-sub">CNN Fear & Greed Index</div>
+    </div>
+  </div>
+
+  <!-- VIX Section -->
+  <div class="section-title">📊 VIX & Volatility</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">VIX Index — 30 Day History</div>
+      <div class="chart-container-lg"><canvas id="vixChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">VIX Statistics</div>
+      <div class="vix-grid" id="vixStats"></div>
+      <div style="margin-top:20px;">
+        <div class="card-title" style="margin-bottom:12px;">India VIX</div>
+        <div class="vix-grid" id="indiaVixStats"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Component Breakdown -->
+  <div class="section-title" style="margin-top:30px;">🔍 Fear & Greed Component Breakdown</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Components</div>
+      <div id="components"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Historical Fear & Greed (30 Days)</div>
+      <div class="chart-container-lg"><canvas id="fgHistChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Market Breadth -->
+  <div class="section-title" style="margin-top:30px;">📈 Market Breadth Indicators</div>
+  <div class="card">
+    <div class="breadth-grid" id="breadthGrid"></div>
+  </div>
+
+  <!-- Breadth Charts -->
+  <div class="grid-2" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title">Advance/Decline Line (S&P 500)</div>
+      <div class="chart-container"><canvas id="adChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">New Highs vs New Lows (NYSE)</div>
+      <div class="chart-container"><canvas id="hiLoChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt=(n,d=2)=>Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+function genLabels(n){const l=[];for(let i=n;i>0;i--){const d=new Date();d.setDate(d.getDate()-i);l.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));}return l;}
+const labels30 = genLabels(30);
+
+let fgIndex = 62;
+const fgLabels = ['Extreme Fear','Fear','Neutral','Greed','Extreme Greed'];
+const fgColors = ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'];
+
+// Fetch real Fear & Greed data
+async function fetchFG() {
+  try {
+    const res = await fetch('https://api.alternative.me/fng/?limit=1');
+    const data = await res.json();
+    if (data.data && data.data[0]) fgIndex = parseInt(data.data[0].value);
+  } catch(e) {}
+}
+
+function renderGauge() {
+  const pct = fgIndex / 100;
+  document.getElementById('gaugeArc').setAttribute('stroke-dashoffset', 251 * (1 - pct));
+  document.getElementById('gaugeNeedle').setAttribute('transform', `rotate(${-90 + pct * 180}, 100, 100)`);
+  const li = Math.min(4, Math.floor(fgIndex / 20));
+  document.getElementById('fgValue').textContent = fgIndex;
+  document.getElementById('fgValue').style.color = fgColors[li];
+  document.getElementById('fgText').textContent = fgLabels[li];
+  document.getElementById('fgText').style.color = fgColors[li];
+}
+
+// VIX chart
+const vixData = [];
+let v = 14.8;
+for(let i=0;i<30;i++){v=Math.max(9,Math.min(45,v+(Math.random()-0.48)*1.5));vixData.push(v);}
+function renderVIX() {
+  const currentVix = vixData[vixData.length-1];
+  new Chart(document.getElementById('vixChart'),{
+    type:'line',
+    data:{labels:labels30,datasets:[
+      {label:'VIX',data:vixData,borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2},
+      {label:'VIX Avg (20d)',data:vixData.map((_,i)=>{const sl=vixData.slice(Math.max(0,i-19),i+1);return sl.reduce((a,b)=>a+b,0)/sl.length;}),borderColor:'#64748b',borderDash:[5,5],tension:0.4,pointRadius:0,borderWidth:1},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#94a3b8',font:{size:11}}}},scales:{
+      x:{ticks:{color:'#64748b',maxTicksLimit:8,font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},
+      y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}}
+    },interaction:{intersect:false,mode:'index'}}
+  });
+
+  const vixColor = currentVix>25?'var(--red)':currentVix>18?'var(--yellow)':'var(--green)';
+  const vixMin = Math.min(...vixData).toFixed(2);
+  const vixMax = Math.max(...vixData).toFixed(2);
+  const vixAvg = (vixData.reduce((a,b)=>a+b,0)/vixData.length).toFixed(2);
+  document.getElementById('vixStats').innerHTML = `
+    <div class="vix-stat"><div class="vv" style="color:${vixColor}">${fmt(currentVix)}</div><div class="vl">Current VIX</div></div>
+    <div class="vix-stat"><div class="vv">${vixAvg}</div><div class="vl">30D Average</div></div>
+    <div class="vix-stat"><div class="vv" style="color:var(--green)">${vixMin}</div><div class="vl">30D Low</div></div>
+    <div class="vix-stat"><div class="vv" style="color:var(--red)">${vixMax}</div><div class="vl">30D High</div></div>
+  `;
+  document.getElementById('indiaVixStats').innerHTML = `
+    <div class="vix-stat"><div class="vv" style="color:var(--green)">13.42</div><div class="vl">India VIX</div></div>
+    <div class="vix-stat"><div class="vv">14.85</div><div class="vl">30D Average</div></div>
+    <div class="vix-stat"><div class="vv" style="color:var(--green)">11.28</div><div class="vl">30D Low</div></div>
+    <div class="vix-stat"><div class="vv" style="color:var(--red)">18.92</div><div class="vl">30D High</div></div>
+  `;
+}
+
+// Components
+const components = [
+  {name:'Market Momentum',value:72,signal:'Greed',desc:'S&P 500 trading above its 125-day moving average',color:'#84cc16'},
+  {name:'Stock Price Strength',value:58,signal:'Neutral',desc:'Number of stocks hitting 52-week highs vs lows on NYSE',color:'#eab308'},
+  {name:'Stock Price Breadth',value:65,signal:'Greed',desc:'McClellan Volume Summation Index',color:'#84cc16'},
+  {name:'Put/Call Ratio',value:55,signal:'Neutral',desc:'Put options volume relative to call options — 0.82 ratio',color:'#eab308'},
+  {name:'Junk Bond Demand',value:70,signal:'Greed',desc:'Spread between junk bond yields and investment-grade',color:'#84cc16'},
+  {name:'Safe Haven Demand',value:48,signal:'Neutral',desc:'Relative performance of stocks vs. bonds',color:'#eab308'},
+  {name:'Market Volatility',value:68,signal:'Greed',desc:'VIX at '+fmt(vixData[vixData.length-1])+' — below long-term average',color:'#84cc16'},
+];
+function renderComponents() {
+  document.getElementById('components').innerHTML = components.map(c=>`
+    <div class="component">
+      <div class="comp-header">
+        <span class="comp-label">${c.name}</span>
+        <span class="comp-value" style="color:${c.color}">${c.value} — ${c.signal}</span>
+      </div>
+      <div class="comp-bar"><div class="fill" style="width:${c.value}%;background:${c.color}"></div></div>
+      <div class="comp-desc">${c.desc}</div>
+    </div>
+  `).join('');
+}
+
+// Historical F&G
+function renderFGHistory() {
+  const fgHist = [];
+  let fg = 55;
+  for(let i=0;i<30;i++){fg=Math.max(5,Math.min(95,fg+(Math.random()-0.48)*5));fgHist.push(fg);}
+  fgHist[fgHist.length-1] = fgIndex;
+  const colors = fgHist.map(v => {
+    if(v<20) return '#ef4444'; if(v<40) return '#f97316'; if(v<60) return '#eab308'; if(v<80) return '#84cc16'; return '#22c55e';
+  });
+  new Chart(document.getElementById('fgHistChart'),{
+    type:'bar',
+    data:{labels:labels30,datasets:[{data:fgHist,backgroundColor:colors,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{ticks:{color:'#64748b',maxTicksLimit:8,font:{size:10}},grid:{display:false}},
+      y:{min:0,max:100,ticks:{color:'#64748b',font:{size:10},stepSize:25},grid:{color:'rgba(255,255,255,0.03)'}}
+    }}
+  });
+}
+
+// Market Breadth
+function renderBreadth() {
+  const items = [
+    {label:'Advancing Issues',value:'2,148',color:'var(--green)'},
+    {label:'Declining Issues',value:'1,352',color:'var(--red)'},
+    {label:'A/D Ratio',value:'1.59',color:'var(--green)'},
+    {label:'New 52W Highs',value:'184',color:'var(--green)'},
+    {label:'New 52W Lows',value:'42',color:'var(--red)'},
+    {label:'Above 200 DMA',value:'68.4%',color:'var(--green)'},
+    {label:'% Above 50 DMA',value:'58.2%',color:'var(--yellow)'},
+    {label:'McClellan Osc.',value:'+42.8',color:'var(--green)'},
+    {label:'Arms Index (TRIN)',value:'0.85',color:'var(--green)'},
+    {label:'Nifty A/D Ratio',value:'1.42',color:'var(--green)'},
+  ];
+  document.getElementById('breadthGrid').innerHTML = items.map(i=>`
+    <div class="breadth-item"><div class="bv" style="color:${i.color}">${i.value}</div><div class="bl">${i.label}</div></div>
+  `).join('');
+}
+
+// A/D Line chart
+function renderADChart() {
+  const ad = []; let cumAD = 0;
+  for(let i=0;i<30;i++){cumAD+=(Math.random()-0.42)*200;ad.push(cumAD);}
+  new Chart(document.getElementById('adChart'),{
+    type:'line',
+    data:{labels:labels30,datasets:[{label:'A/D Line',data:ad,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{ticks:{color:'#64748b',maxTicksLimit:6,font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},
+      y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}}
+    }}
+  });
+}
+
+// New Highs vs Lows
+function renderHiLo() {
+  const highs = [], lows = [];
+  for(let i=0;i<30;i++){highs.push(80+Math.random()*150);lows.push(20+Math.random()*60);}
+  new Chart(document.getElementById('hiLoChart'),{
+    type:'bar',
+    data:{labels:labels30,datasets:[
+      {label:'New Highs',data:highs,backgroundColor:'rgba(34,197,94,0.6)',borderRadius:3},
+      {label:'New Lows',data:lows.map(v=>-v),backgroundColor:'rgba(239,68,68,0.6)',borderRadius:3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#94a3b8',font:{size:11}}}},scales:{
+      x:{stacked:true,ticks:{color:'#64748b',maxTicksLimit:6,font:{size:10}},grid:{display:false}},
+      y:{stacked:true,ticks:{color:'#64748b',font:{size:10},callback:v=>Math.abs(v)},grid:{color:'rgba(255,255,255,0.03)'}}
+    }}
+  });
+}
+
+(async function init(){
+  await fetchFG();
+  renderGauge();
+  renderVIX();
+  renderComponents();
+  renderFGHistory();
+  renderBreadth();
+  renderADChart();
+  renderHiLo();
+})();
+</script>
+</body>
+</html>

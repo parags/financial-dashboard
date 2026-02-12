@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bond Yields — GlobalPulse</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary:#0a0e17;--bg-secondary:#111827;--bg-card:#1a1f2e;--border:#2a3045;
+  --text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;
+  --green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--yellow:#eab308;--purple:#a855f7;--cyan:#06b6d4;--orange:#f97316;
+  --gradient-card:linear-gradient(135deg,#1a1f2e 0%,#151a28 100%);--shadow-card:0 4px 24px rgba(0,0,0,0.3);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh;}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg-primary)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.page-header{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:20px 30px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+.logo h1{font-size:22px;font-weight:700}.logo h1 span{color:var(--blue)}
+.breadcrumb{font-size:13px;color:var(--text-muted);margin-top:6px}.breadcrumb a{color:var(--blue);text-decoration:none}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--blue);text-decoration:none;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;background:var(--blue-bg)}
+.container{max-width:1800px;margin:0 auto;padding:20px}
+.section-title{font-size:18px;font-weight:700;margin:30px 0 16px;display:flex;align-items:center;gap:10px}
+.card{background:var(--gradient-card);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow-card);position:relative;overflow:hidden;transition:border-color 0.3s}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--purple));opacity:0;transition:opacity 0.3s}
+.card:hover::before{opacity:1}.card:hover{border-color:rgba(59,130,246,0.3)}
+.card-title{font-size:14px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+.chart-container{position:relative;height:300px}
+.chart-container-sm{position:relative;height:200px}
+.yield-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.yield-item{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.yield-item .yv{font-size:24px;font-weight:700}
+.yield-item .yl{font-size:11px;color:var(--text-muted);margin-top:4px;text-transform:uppercase}
+.yield-item .yc{font-size:12px;font-weight:600;margin-top:4px}
+.commentary{background:rgba(255,255,255,0.03);border-radius:12px;padding:16px;margin-top:12px}
+.commentary h4{font-size:14px;color:var(--text-secondary);margin-bottom:8px}
+.commentary p{font-size:13px;color:var(--text-muted);line-height:1.6}
+.commentary ul{margin:8px 0 0 20px;font-size:13px;color:var(--text-muted);line-height:1.8}
+.timeline{display:flex;flex-direction:column;gap:12px}
+.timeline-item{display:flex;gap:16px;align-items:flex-start;padding:12px;background:rgba(255,255,255,0.02);border-radius:10px}
+.timeline-dot{width:12px;height:12px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.timeline-content .tc-date{font-size:11px;color:var(--text-muted);text-transform:uppercase}
+.timeline-content .tc-event{font-size:13px;font-weight:600;margin-top:2px}
+.timeline-content .tc-detail{font-size:12px;color:var(--text-muted);margin-top:2px}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.card{animation:fadeInUp 0.4s ease-out both}
+@media(max-width:860px){.grid-2,.grid-3{grid-template-columns:1fr}.container{padding:12px}}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div>
+    <div class="logo"><div class="logo-icon">G</div><h1>Global<span>Pulse</span></h1></div>
+    <div class="breadcrumb"><a href="index.html">Dashboard</a> &rsaquo; Bond Yields</div>
+  </div>
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+</div>
+
+<div class="container">
+  <!-- Summary -->
+  <div class="yield-summary" id="yieldSummary"></div>
+
+  <!-- Yield Curves -->
+  <div class="section-title">📈 Yield Curves</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🇺🇸 US Treasury Yield Curve</div>
+      <div class="chart-container"><canvas id="usYieldCurve"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🇮🇳 India Government Bond Yield Curve</div>
+      <div class="chart-container"><canvas id="inYieldCurve"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🇩🇪 German Bund Yield Curve</div>
+      <div class="chart-container"><canvas id="deYieldCurve"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🇬🇧 UK Gilt Yield Curve & 🇯🇵 JGB</div>
+      <div class="chart-container"><canvas id="ukjpYieldCurve"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Spread Analysis -->
+  <div class="section-title" style="margin-top:30px;">📊 Spread Analysis</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">US 10Y-2Y Spread</div>
+      <div class="chart-container-sm"><canvas id="spreadChart"></canvas></div>
+      <div class="commentary">
+        <h4>Current Spread: +0.116%</h4>
+        <p>The US yield curve has recently un-inverted after being inverted since mid-2022. A normalizing curve typically signals expectations of economic slowdown and potential Fed rate cuts ahead.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Historical 10Y Yield Comparison</div>
+      <div class="chart-container-sm"><canvas id="histYieldChart"></canvas></div>
+      <div class="commentary">
+        <h4>Multi-Country 10Y Comparison</h4>
+        <p>US and India yields remain elevated compared to Europe and Japan, reflecting different monetary policy stances and inflation dynamics.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Central Bank Timeline -->
+  <div class="section-title" style="margin-top:30px;">🏛️ Central Bank Policy Rate Timeline</div>
+  <div class="card">
+    <div class="grid-2">
+      <div class="chart-container"><canvas id="cbRateChart"></canvas></div>
+      <div class="timeline" id="cbTimeline"></div>
+    </div>
+  </div>
+
+  <!-- Commentary -->
+  <div class="section-title" style="margin-top:30px;">📝 Bond Market Commentary</div>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">🇺🇸 US Treasury</div>
+      <div class="commentary">
+        <p>Treasury yields edged higher as markets digest strong jobs data and reassess Fed rate cut expectations. The 10Y touched 4.43%, reflecting sticky inflation concerns.</p>
+        <ul>
+          <li>Fed funds rate at 5.25-5.50%</li>
+          <li>Market pricing 2 cuts in 2025</li>
+          <li>Strong demand at recent auctions</li>
+          <li>Real yields remain attractive</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🇮🇳 India Bonds</div>
+      <div class="commentary">
+        <p>Indian government bond yields remain stable as RBI holds rates at 6.50%. FPI inflows into Indian debt have increased following JP Morgan index inclusion.</p>
+        <ul>
+          <li>RBI repo rate: 6.50% (unchanged since Feb 2023)</li>
+          <li>10Y G-Sec yield: 7.18%</li>
+          <li>JP Morgan EM Bond Index inclusion boosting flows</li>
+          <li>Fiscal deficit target: 5.1% of GDP</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🌍 Global Outlook</div>
+      <div class="commentary">
+        <p>Global bond markets face diverging monetary policies. The Fed and BOE maintain restrictive stances, while ECB has begun cutting. BOJ's normalization adds uncertainty.</p>
+        <ul>
+          <li>ECB cut rates in June and September 2024</li>
+          <li>BOJ ended negative rates in March 2024</li>
+          <li>EM bonds benefit from carry trades</li>
+          <li>Credit spreads remain tight</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt=(n,d=2)=>Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+
+// Yield Summary
+const yields = [
+  {label:'US 10Y',value:4.428,change:0.02,flag:'🇺🇸'},
+  {label:'US 2Y',value:4.312,change:-0.01,flag:'🇺🇸'},
+  {label:'US 30Y',value:4.586,change:0.03,flag:'🇺🇸'},
+  {label:'India 10Y',value:7.18,change:-0.02,flag:'🇮🇳'},
+  {label:'German 10Y',value:2.348,change:-0.02,flag:'🇩🇪'},
+  {label:'UK 10Y',value:4.512,change:0.01,flag:'🇬🇧'},
+  {label:'Japan 10Y',value:1.068,change:0.005,flag:'🇯🇵'},
+  {label:'10Y-2Y Spread',value:0.116,change:0.03,flag:'📐'},
+];
+document.getElementById('yieldSummary').innerHTML = yields.map(y => {
+  const color = y.change >= 0 ? 'var(--red)' : 'var(--green)'; // rising yields = red for bonds
+  const dir = y.change >= 0 ? '▲' : '▼';
+  return `<div class="yield-item">
+    <div class="yv">${y.flag} ${fmt(y.value,3)}%</div>
+    <div class="yl">${y.label}</div>
+    <div class="yc" style="color:${color}">${dir} ${fmt(Math.abs(y.change),3)} bps</div>
+  </div>`;
+}).join('');
+
+const maturities = ['3M','6M','1Y','2Y','3Y','5Y','7Y','10Y','20Y','30Y'];
+const chartOpts = (title) => ({
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{position:'top',labels:{color:'#94a3b8',padding:12,font:{size:11}}},title:{display:!!title,text:title,color:'#94a3b8'}},
+  scales:{
+    x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},
+    y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v.toFixed(2)+'%'},grid:{color:'rgba(255,255,255,0.03)'}}
+  },
+  interaction:{intersect:false,mode:'index'}
+});
+
+// US Yield Curve
+new Chart(document.getElementById('usYieldCurve'),{
+  type:'line',
+  data:{labels:maturities,datasets:[
+    {label:'Current',data:[5.35,5.28,4.85,4.31,4.22,4.18,4.25,4.43,4.72,4.59],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',fill:true,tension:0.3,pointRadius:4,borderWidth:2},
+    {label:'1 Month Ago',data:[5.40,5.32,4.92,4.45,4.35,4.28,4.32,4.50,4.78,4.65],borderColor:'#64748b',borderDash:[5,5],tension:0.3,pointRadius:3,borderWidth:1.5},
+    {label:'1 Year Ago',data:[5.48,5.45,5.12,4.88,4.62,4.48,4.52,4.60,4.95,4.78],borderColor:'#a855f7',borderDash:[3,3],tension:0.3,pointRadius:3,borderWidth:1.5},
+  ]},
+  options:chartOpts()
+});
+
+// India Yield Curve
+new Chart(document.getElementById('inYieldCurve'),{
+  type:'line',
+  data:{labels:maturities,datasets:[
+    {label:'Current',data:[6.82,6.90,6.95,7.02,7.05,7.10,7.14,7.18,7.28,7.35],borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.08)',fill:true,tension:0.3,pointRadius:4,borderWidth:2},
+    {label:'1 Year Ago',data:[6.95,7.02,7.08,7.12,7.15,7.18,7.22,7.30,7.42,7.48],borderColor:'#64748b',borderDash:[5,5],tension:0.3,pointRadius:3,borderWidth:1.5},
+  ]},
+  options:chartOpts()
+});
+
+// German
+new Chart(document.getElementById('deYieldCurve'),{
+  type:'line',
+  data:{labels:maturities,datasets:[
+    {label:'Current',data:[3.42,3.28,2.85,2.45,2.32,2.28,2.32,2.35,2.52,2.48],borderColor:'#eab308',backgroundColor:'rgba(234,179,8,0.08)',fill:true,tension:0.3,pointRadius:4,borderWidth:2},
+  ]},
+  options:chartOpts()
+});
+
+// UK + JP
+new Chart(document.getElementById('ukjpYieldCurve'),{
+  type:'line',
+  data:{labels:maturities,datasets:[
+    {label:'UK Gilts',data:[5.18,5.05,4.72,4.38,4.32,4.28,4.38,4.51,4.82,4.75],borderColor:'#22c55e',tension:0.3,pointRadius:4,borderWidth:2},
+    {label:'Japan JGB',data:[0.02,0.05,0.15,0.35,0.42,0.58,0.78,1.07,1.68,2.12],borderColor:'#ef4444',tension:0.3,pointRadius:4,borderWidth:2},
+  ]},
+  options:chartOpts()
+});
+
+// Spread chart (30-day history)
+function genLabels(n){const l=[];for(let i=n;i>0;i--){const d=new Date();d.setDate(d.getDate()-i);l.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));}return l;}
+const spreadData = [];
+let s = -0.05;
+for(let i=0;i<30;i++){s+=(Math.random()-0.45)*0.03;spreadData.push(s);}
+new Chart(document.getElementById('spreadChart'),{
+  type:'line',
+  data:{labels:genLabels(30),datasets:[{
+    label:'10Y-2Y Spread',data:spreadData,
+    borderColor:spreadData[spreadData.length-1]>=0?'#22c55e':'#ef4444',
+    backgroundColor:spreadData[spreadData.length-1]>=0?'rgba(34,197,94,0.08)':'rgba(239,68,68,0.08)',
+    fill:true,tension:0.4,pointRadius:0,borderWidth:2
+  }]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},annotation:{}},scales:{
+    x:{ticks:{color:'#64748b',maxTicksLimit:6,font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},
+    y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v.toFixed(2)+'%'},grid:{color:'rgba(255,255,255,0.03)'}}
+  }}
+});
+
+// Historical 10Y comparison
+const hist10y = {us:[],india:[],germany:[],uk:[],japan:[]};
+let hus=4.2,hin=7.0,hde=2.1,huk=4.2,hjp=0.8;
+for(let i=0;i<30;i++){
+  hus+=(Math.random()-0.48)*0.04; hist10y.us.push(hus);
+  hin+=(Math.random()-0.48)*0.03; hist10y.india.push(hin);
+  hde+=(Math.random()-0.48)*0.03; hist10y.germany.push(hde);
+  huk+=(Math.random()-0.48)*0.04; hist10y.uk.push(huk);
+  hjp+=(Math.random()-0.47)*0.02; hist10y.japan.push(hjp);
+}
+new Chart(document.getElementById('histYieldChart'),{
+  type:'line',
+  data:{labels:genLabels(30),datasets:[
+    {label:'US',data:hist10y.us,borderColor:'#3b82f6',tension:0.4,pointRadius:0,borderWidth:2},
+    {label:'India',data:hist10y.india,borderColor:'#f97316',tension:0.4,pointRadius:0,borderWidth:2},
+    {label:'Germany',data:hist10y.germany,borderColor:'#eab308',tension:0.4,pointRadius:0,borderWidth:2},
+    {label:'UK',data:hist10y.uk,borderColor:'#22c55e',tension:0.4,pointRadius:0,borderWidth:2},
+    {label:'Japan',data:hist10y.japan,borderColor:'#ef4444',tension:0.4,pointRadius:0,borderWidth:2},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#94a3b8',font:{size:10}}}},scales:{
+    x:{ticks:{color:'#64748b',maxTicksLimit:6,font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},
+    y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(255,255,255,0.03)'}}
+  }}
+});
+
+// Central Bank Rate Chart
+const cbLabels = ['2020','2021','Q1 22','Q2 22','Q3 22','Q4 22','Q1 23','Q2 23','Q3 23','Q4 23','Q1 24','Q2 24','Q3 24','Q4 24'];
+new Chart(document.getElementById('cbRateChart'),{
+  type:'line',
+  data:{labels:cbLabels,datasets:[
+    {label:'Fed',data:[0.25,0.25,0.50,1.75,3.25,4.50,5.00,5.25,5.50,5.50,5.50,5.50,5.50,5.50],borderColor:'#3b82f6',tension:0.2,pointRadius:3,borderWidth:2,stepped:true},
+    {label:'RBI',data:[4.00,4.00,4.00,4.90,5.90,6.25,6.50,6.50,6.50,6.50,6.50,6.50,6.50,6.50],borderColor:'#f97316',tension:0.2,pointRadius:3,borderWidth:2,stepped:true},
+    {label:'ECB',data:[0.00,0.00,0.00,0.50,1.25,2.50,3.50,4.00,4.50,4.50,4.50,4.25,3.65,3.40],borderColor:'#eab308',tension:0.2,pointRadius:3,borderWidth:2,stepped:true},
+    {label:'BOJ',data:[-0.10,-0.10,-0.10,-0.10,-0.10,-0.10,-0.10,-0.10,-0.10,-0.10,0.10,0.10,0.25,0.25],borderColor:'#ef4444',tension:0.2,pointRadius:3,borderWidth:2,stepped:true},
+    {label:'BOE',data:[0.10,0.10,0.75,1.25,2.25,3.50,4.25,5.00,5.25,5.25,5.25,5.25,5.00,4.75],borderColor:'#22c55e',tension:0.2,pointRadius:3,borderWidth:2,stepped:true},
+  ]},
+  options:chartOpts()
+});
+
+// Timeline
+const events = [
+  {date:'Nov 2024',event:'Fed holds at 5.25-5.50%',detail:'Waiting for more inflation data',color:'var(--blue)'},
+  {date:'Oct 2024',event:'RBI holds at 6.50%',detail:'Inflation within target band',color:'var(--orange)'},
+  {date:'Sep 2024',event:'ECB cuts to 3.65%',detail:'Third cut in easing cycle',color:'var(--yellow)'},
+  {date:'Aug 2024',event:'BOE cuts to 5.00%',detail:'First cut since 2020',color:'var(--green)'},
+  {date:'Jul 2024',event:'BOJ raises to 0.25%',detail:'Surprising hawkish move',color:'var(--red)'},
+  {date:'Jun 2024',event:'ECB cuts to 4.25%',detail:'First cut, citing lower inflation',color:'var(--yellow)'},
+  {date:'Mar 2024',event:'BOJ exits negative rates',detail:'Historic shift to 0.10%',color:'var(--red)'},
+  {date:'Jul 2023',event:'Fed reaches peak at 5.50%',detail:'Final hike of the cycle',color:'var(--blue)'},
+];
+document.getElementById('cbTimeline').innerHTML = events.map(e=>`
+  <div class="timeline-item">
+    <div class="timeline-dot" style="background:${e.color}"></div>
+    <div class="timeline-content">
+      <div class="tc-date">${e.date}</div>
+      <div class="tc-event">${e.event}</div>
+      <div class="tc-detail">${e.detail}</div>
+    </div>
+  </div>
+`).join('');
+</script>
+</body>
+</html>

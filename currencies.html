@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Currency Exchange Rates — GlobalPulse</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary: #0a0e17; --bg-secondary: #111827; --bg-card: #1a1f2e; --border: #2a3045;
+  --text-primary: #e2e8f0; --text-secondary: #94a3b8; --text-muted: #64748b;
+  --green: #22c55e; --green-bg: rgba(34,197,94,0.1); --red: #ef4444; --red-bg: rgba(239,68,68,0.1);
+  --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.1); --yellow: #eab308; --purple: #a855f7; --cyan: #06b6d4; --orange: #f97316;
+  --gradient-card: linear-gradient(135deg, #1a1f2e 0%, #151a28 100%);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.3);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg-primary); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.page-header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--blue), var(--purple)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+.logo h1 { font-size: 22px; font-weight: 700; } .logo h1 span { color: var(--blue); }
+.breadcrumb { font-size: 13px; color: var(--text-muted); margin-top: 6px; } .breadcrumb a { color: var(--blue); text-decoration: none; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--blue); text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 8px; background: var(--blue-bg); }
+.container { max-width: 1800px; margin: 0 auto; padding: 20px; }
+.section-title { font-size: 18px; font-weight: 700; margin: 30px 0 16px; display: flex; align-items: center; gap: 10px; }
+.card { background: var(--gradient-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: var(--shadow-card); transition: border-color 0.3s; position: relative; overflow: hidden; }
+.card::before { content:''; position:absolute; top:0;left:0;right:0; height:3px; background:linear-gradient(90deg,var(--blue),var(--purple)); opacity:0; transition:opacity 0.3s; }
+.card:hover::before { opacity:1; } .card:hover { border-color: rgba(59,130,246,0.3); }
+.card-title { font-size:14px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.pairs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; }
+.pair-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.pair-name { font-size:18px; font-weight:700; display:flex; align-items:center; gap:10px; }
+.pair-price { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; }
+.pair-change { font-size:14px; font-weight:600; padding:4px 10px; border-radius:8px; }
+.pair-change.up { color:var(--green); background:var(--green-bg); }
+.pair-change.down { color:var(--red); background:var(--red-bg); }
+.chart-container { position: relative; height: 160px; }
+.meta-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
+.meta-item { background:rgba(255,255,255,0.03); border-radius:8px; padding:8px 12px; }
+.meta-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
+.meta-value { font-size:13px; font-weight:600; margin-top:2px; }
+
+/* Featured USD/INR */
+.featured { border: 1px solid rgba(59,130,246,0.3); grid-column: 1 / -1; }
+.featured .pair-price { font-size: 36px; }
+.featured .chart-container { height: 220px; }
+
+/* Converter */
+.converter { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: end; }
+.converter-group label { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+.converter-group input, .converter-group select {
+  width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text-primary); font-size: 16px; font-weight: 600; outline: none;
+}
+.converter-group select { cursor: pointer; }
+.converter-group input:focus, .converter-group select:focus { border-color: var(--blue); }
+.converter-swap { font-size: 24px; cursor: pointer; color: var(--blue); padding: 10px; text-align: center; }
+
+/* Cross-rate matrix */
+.matrix-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; overflow-x: auto; display: block; }
+.matrix-table th, .matrix-table td { padding: 10px 12px; text-align: center; min-width: 80px; }
+.matrix-table th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; background: rgba(255,255,255,0.03); }
+.matrix-table td { border-bottom: 1px solid rgba(255,255,255,0.03); font-variant-numeric: tabular-nums; }
+.matrix-table td.diag { color: var(--text-muted); background: rgba(255,255,255,0.02); }
+
+/* Central bank */
+.cb-table { width:100%; border-collapse:separate; border-spacing:0 4px; font-size:13px; }
+.cb-table th { text-align:left; padding:8px 12px; color:var(--text-muted); font-weight:500; font-size:11px; text-transform:uppercase; }
+.cb-table td { padding:10px 12px; background:rgba(255,255,255,0.02); font-variant-numeric:tabular-nums; }
+.cb-table tr td:first-child { border-radius:8px 0 0 8px; font-weight:600; }
+.cb-table tr td:last-child { border-radius:0 8px 8px 0; }
+
+@keyframes fadeInUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+.card { animation: fadeInUp 0.4s ease-out both; }
+@media (max-width: 860px) { .pairs-grid { grid-template-columns: 1fr; } .converter { grid-template-columns: 1fr; } .featured { grid-column: 1; } .container { padding: 12px; } }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <div class="logo"><div class="logo-icon">G</div><h1>Global<span>Pulse</span></h1></div>
+    <div class="breadcrumb"><a href="index.html">Dashboard</a> &rsaquo; Currency Exchange Rates</div>
+  </div>
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+</div>
+
+<div class="container">
+  <!-- Featured USD/INR -->
+  <div class="section-title">🇮🇳 Featured: USD/INR</div>
+  <div class="pairs-grid"><div class="card featured" id="featuredCard"></div></div>
+
+  <!-- All Pairs -->
+  <div class="section-title">💱 All Currency Pairs</div>
+  <div class="pairs-grid" id="pairsGrid"></div>
+
+  <!-- Currency Converter -->
+  <div class="section-title" style="margin-top:30px;">🔄 Currency Converter</div>
+  <div class="card">
+    <div class="converter">
+      <div class="converter-group">
+        <label>Amount</label>
+        <input type="number" id="convAmount" value="1000" oninput="convert()">
+      </div>
+      <div class="converter-group">
+        <label>From</label>
+        <select id="convFrom" onchange="convert()">
+          <option value="USD" selected>USD - US Dollar</option>
+          <option value="EUR">EUR - Euro</option>
+          <option value="GBP">GBP - British Pound</option>
+          <option value="JPY">JPY - Japanese Yen</option>
+          <option value="INR">INR - Indian Rupee</option>
+          <option value="CNY">CNY - Chinese Yuan</option>
+          <option value="AUD">AUD - Australian Dollar</option>
+          <option value="CAD">CAD - Canadian Dollar</option>
+          <option value="CHF">CHF - Swiss Franc</option>
+        </select>
+      </div>
+      <div class="converter-swap" onclick="swapCurrencies()">⇄</div>
+      <div class="converter-group">
+        <label>To</label>
+        <select id="convTo" onchange="convert()">
+          <option value="USD">USD - US Dollar</option>
+          <option value="EUR">EUR - Euro</option>
+          <option value="GBP">GBP - British Pound</option>
+          <option value="JPY">JPY - Japanese Yen</option>
+          <option value="INR" selected>INR - Indian Rupee</option>
+          <option value="CNY">CNY - Chinese Yuan</option>
+          <option value="AUD">AUD - Australian Dollar</option>
+          <option value="CAD">CAD - Canadian Dollar</option>
+          <option value="CHF">CHF - Swiss Franc</option>
+        </select>
+      </div>
+      <div class="converter-group">
+        <label>Result</label>
+        <input type="text" id="convResult" readonly style="color:var(--green);">
+      </div>
+    </div>
+  </div>
+
+  <!-- Cross-Rate Matrix -->
+  <div class="section-title" style="margin-top:30px;">📊 Cross-Rate Matrix</div>
+  <div class="card" style="overflow-x:auto;">
+    <table class="matrix-table" id="matrixTable"></table>
+  </div>
+
+  <!-- Central Bank Rates -->
+  <div class="section-title" style="margin-top:30px;">🏛️ Central Bank Policy Rates</div>
+  <div class="card">
+    <table class="cb-table" id="cbTable"></table>
+  </div>
+</div>
+
+<script>
+const fmt = (n,d=2) => Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtPct = n => (n>=0?'+':'')+fmt(n)+'%';
+
+const pairs = [
+  {id:'usdinr',name:'USD/INR',flag:'🇮🇳',price:84.38,change:0.03,high:'84.92',low:'82.10',bid:84.36,ask:84.40,featured:true},
+  {id:'eurusd',name:'EUR/USD',flag:'🇪🇺',price:1.0542,change:0.12,high:'1.1215',low:'1.0345',bid:1.0540,ask:1.0544},
+  {id:'gbpusd',name:'GBP/USD',flag:'🇬🇧',price:1.2618,change:-0.08,high:'1.3145',low:'1.2035',bid:1.2616,ask:1.2620},
+  {id:'usdjpy',name:'USD/JPY',flag:'🇯🇵',price:154.82,change:0.23,high:'161.95',low:'140.80',bid:154.80,ask:154.84},
+  {id:'usdchf',name:'USD/CHF',flag:'🇨🇭',price:0.8865,change:0.05,high:'0.9225',low:'0.8375',bid:0.8863,ask:0.8867},
+  {id:'usdcny',name:'USD/CNY',flag:'🇨🇳',price:7.2485,change:-0.11,high:'7.3680',low:'7.0825',bid:7.2480,ask:7.2490},
+  {id:'audusd',name:'AUD/USD',flag:'🇦🇺',price:0.6512,change:-0.22,high:'0.6942',low:'0.6350',bid:0.6510,ask:0.6514},
+  {id:'usdcad',name:'USD/CAD',flag:'🇨🇦',price:1.3984,change:0.14,high:'1.4125',low:'1.3180',bid:1.3982,ask:1.3986},
+];
+
+// Rates relative to USD for converter
+const toUSD = {USD:1,EUR:1/1.0542,GBP:1/1.2618,JPY:1/154.82,INR:1/84.38,CNY:1/7.2485,AUD:1/0.6512,CAD:1/1.3984,CHF:1/0.8865};
+// Invert: fromUSD
+const fromUSD = {};
+Object.keys(toUSD).forEach(k => fromUSD[k] = 1/toUSD[k]);
+
+function genHistory(base, vol=0.15) {
+  const d=[]; let p=base*(1-vol/100*15);
+  for(let i=0;i<30;i++){p=p*(1+(Math.random()-0.48)*vol/100);d.push(p);}
+  return d;
+}
+function genLabels(n=30) {
+  const l=[]; for(let i=n;i>0;i--){const d=new Date();d.setDate(d.getDate()-i);l.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));}return l;
+}
+const labels30 = genLabels(30);
+
+// Featured
+function renderFeatured() {
+  const p = pairs.find(x=>x.featured);
+  const dir = p.change >= 0 ? 'up' : 'down';
+  const color = p.change >= 0 ? '#22c55e' : '#ef4444';
+  document.getElementById('featuredCard').innerHTML = `
+    <div class="pair-top">
+      <div>
+        <div class="pair-name">${p.flag} ${p.name}</div>
+        <div style="display:flex;align-items:baseline;gap:12px;margin-top:8px;">
+          <div class="pair-price">${fmt(p.price,4)}</div>
+          <span class="pair-change ${dir}">${fmtPct(p.change)}</span>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:12px;color:var(--text-muted);">
+        <div>Key pair for India trade</div>
+        <div style="margin-top:4px;">RBI Reference Rate</div>
+      </div>
+    </div>
+    <div class="meta-row">
+      <div class="meta-item"><div class="meta-label">52W High</div><div class="meta-value">${p.high}</div></div>
+      <div class="meta-item"><div class="meta-label">52W Low</div><div class="meta-value">${p.low}</div></div>
+      <div class="meta-item"><div class="meta-label">Bid/Ask</div><div class="meta-value">${fmt(p.bid,4)} / ${fmt(p.ask,4)}</div></div>
+    </div>
+    <div class="chart-container" style="height:220px;"><canvas id="chart-featured"></canvas></div>
+  `;
+  const hist = genHistory(p.price, 0.1);
+  new Chart(document.getElementById('chart-featured'), {
+    type:'line',
+    data:{labels:labels30,datasets:[{data:hist,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{ticks:{color:'#64748b',maxTicksLimit:8,font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},
+      y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v.toFixed(2)},grid:{color:'rgba(255,255,255,0.03)'}}
+    },interaction:{intersect:false,mode:'index'}}
+  });
+}
+
+function renderPairs() {
+  const grid = document.getElementById('pairsGrid');
+  pairs.filter(p=>!p.featured).forEach((p,idx) => {
+    const dir = p.change>=0?'up':'down';
+    const color = p.change>=0?'#22c55e':'#ef4444';
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.animationDelay = (idx*0.05)+'s';
+    card.innerHTML = `
+      <div class="pair-top">
+        <div>
+          <div class="pair-name">${p.flag} ${p.name}</div>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px;">
+            <div class="pair-price">${fmt(p.price,4)}</div>
+            <span class="pair-change ${dir}">${fmtPct(p.change)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="meta-row">
+        <div class="meta-item"><div class="meta-label">52W High</div><div class="meta-value">${p.high}</div></div>
+        <div class="meta-item"><div class="meta-label">52W Low</div><div class="meta-value">${p.low}</div></div>
+        <div class="meta-item"><div class="meta-label">Bid/Ask</div><div class="meta-value">${fmt(p.bid,4)}/${fmt(p.ask,4)}</div></div>
+      </div>
+      <div class="chart-container"><canvas id="chart-${p.id}"></canvas></div>
+    `;
+    grid.appendChild(card);
+    const hist = genHistory(p.price, 0.12);
+    new Chart(card.querySelector('canvas'), {
+      type:'line',
+      data:{labels:labels30,datasets:[{data:hist,borderColor:color,backgroundColor:color+'18',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+        x:{ticks:{color:'#64748b',maxTicksLimit:6,font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}},
+        y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,0.03)'}}
+      },interaction:{intersect:false,mode:'index'}}
+    });
+  });
+}
+
+// Converter
+window.convert = function() {
+  const amt = parseFloat(document.getElementById('convAmount').value) || 0;
+  const from = document.getElementById('convFrom').value;
+  const to = document.getElementById('convTo').value;
+  const usdAmt = amt * toUSD[from];
+  const result = usdAmt * fromUSD[to];
+  document.getElementById('convResult').value = fmt(result, to==='JPY'?0:2) + ' ' + to;
+};
+window.swapCurrencies = function() {
+  const f = document.getElementById('convFrom');
+  const t = document.getElementById('convTo');
+  [f.value, t.value] = [t.value, f.value];
+  convert();
+};
+convert();
+
+// Cross-rate matrix
+function renderMatrix() {
+  const currs = ['USD','EUR','GBP','JPY','INR','CNY','CHF'];
+  let html = '<thead><tr><th></th>' + currs.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+  currs.forEach(from => {
+    html += `<tr><td style="font-weight:700;color:var(--text-secondary);background:rgba(255,255,255,0.03)">${from}</td>`;
+    currs.forEach(to => {
+      if (from === to) { html += '<td class="diag">1.0000</td>'; }
+      else {
+        const rate = toUSD[from] * fromUSD[to];
+        html += `<td>${rate >= 100 ? fmt(rate,2) : fmt(rate,4)}</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('matrixTable').innerHTML = html;
+}
+
+// Central Bank Rates
+function renderCB() {
+  const banks = [
+    {bank:'🇺🇸 Federal Reserve (Fed)',rate:'5.25–5.50%',last:'Jul 2023',next:'Dec 18, 2024',bias:'Dovish',note:'2 cuts expected in 2025'},
+    {bank:'🇮🇳 Reserve Bank of India (RBI)',rate:'6.50%',last:'Feb 2023',next:'Dec 6, 2024',bias:'Neutral',note:'Holding steady on growth'},
+    {bank:'🇪🇺 European Central Bank (ECB)',rate:'4.50%',last:'Sep 2023',next:'Dec 12, 2024',bias:'Dovish',note:'Rate cut cycle begun'},
+    {bank:'🇯🇵 Bank of Japan (BOJ)',rate:'0.25%',last:'Jul 2024',next:'Dec 19, 2024',bias:'Hawkish',note:'Gradual normalization'},
+    {bank:'🇬🇧 Bank of England (BOE)',rate:'5.25%',last:'Aug 2023',next:'Dec 19, 2024',bias:'Neutral',note:'First cut in Aug 2024'},
+    {bank:'🇨🇳 PBOC',rate:'3.45%',last:'Aug 2023',next:'TBD',bias:'Dovish',note:'Easing to support growth'},
+  ];
+  document.getElementById('cbTable').innerHTML = `
+    <thead><tr><th>Central Bank</th><th>Rate</th><th>Last Change</th><th>Next Meeting</th><th>Bias</th><th>Note</th></tr></thead>
+    <tbody>${banks.map(b=>`<tr><td>${b.bank}</td><td style="font-weight:700;color:var(--blue)">${b.rate}</td><td>${b.last}</td><td>${b.next}</td><td>${b.bias}</td><td style="color:var(--text-muted)">${b.note}</td></tr>`).join('')}</tbody>
+  `;
+}
+
+renderFeatured();
+renderPairs();
+renderMatrix();
+renderCB();
+</script>
+</body>
+</html>
