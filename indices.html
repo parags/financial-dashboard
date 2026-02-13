@@ -281,7 +281,7 @@ let isLive = false;
 
 // Fetch from Yahoo Finance with batching
 async function fetchYahooQuote(symbol) {
-  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`);
+  const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`)}`);
   if (!res.ok) throw new Error('Yahoo API error');
   const data = await res.json();
   const result = data.chart.result[0];

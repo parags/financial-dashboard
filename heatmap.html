@@ -273,7 +273,7 @@ async function fetchLiveData() {
     const batch = regions.slice(i, i + 3);
     await Promise.allSettled(batch.map(async r => {
       try {
-        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(r.symbol)}?interval=1d&range=1d`);
+        const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(r.symbol)}?interval=1d&range=1d`)}`);
         if (!res.ok) return;
         const data = await res.json();
         const meta = data.chart.result[0].meta;
