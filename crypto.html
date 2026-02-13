@@ -122,21 +122,39 @@ function genLabels(n=30) {
   const l=[]; for(let i=n;i>0;i--) { const d=new Date(); d.setDate(d.getDate()-i); l.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'})); } return l;
 }
 
-// Try to fetch live data from CoinGecko
+let isLive = false;
+
+function updateDataStatus() {
+  let el = document.getElementById('dataStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'dataStatus';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;z-index:999;background:rgba(0,0,0,0.7);border:1px solid rgba(42,48,69,1);';
+    document.body.appendChild(el);
+  }
+  el.textContent = isLive ? '🟢 Live Data' : '⚪ Simulated Data';
+}
+
+// Fetch live data from CoinGecko markets API
 async function fetchLiveData() {
   try {
     const ids = cryptos.map(c=>c.id).join(',');
-    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`);
+    const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc`);
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
-    cryptos.forEach(c => {
-      if (data[c.id]) {
-        c.price = data[c.id].usd || c.price;
-        c.change = data[c.id].usd_24h_change || c.change;
-        c.mcap = data[c.id].usd_market_cap || c.mcap;
-        c.vol24h = data[c.id].usd_24h_vol || c.vol24h;
+    data.forEach(coin => {
+      const c = cryptos.find(x => x.id === coin.id);
+      if (c) {
+        c.price = coin.current_price || c.price;
+        c.change = coin.price_change_percentage_24h || c.change;
+        c.mcap = coin.market_cap || c.mcap;
+        c.vol24h = coin.total_volume || c.vol24h;
+        if (coin.ath) c.ath = coin.ath;
+        if (coin.circulating_supply) c.supply = coin.circulating_supply >= 1e9 ? fmt(coin.circulating_supply/1e9,1)+'B' : fmt(coin.circulating_supply/1e6,1)+'M';
       }
     });
+    isLive = true;
+    updateDataStatus();
   } catch(e) { /* use defaults */ }
 }
 
@@ -256,12 +274,22 @@ function renderMovers() {
 }
 
 (async function init() {
+  updateDataStatus();
   await fetchLiveData();
   renderSummary();
   renderCards();
   renderDominance();
   renderMovers();
 })();
+
+// Refresh every 60 seconds
+setInterval(async () => {
+  await fetchLiveData();
+  renderSummary();
+  renderCards();
+  renderDominance();
+  renderMovers();
+}, 60000);
 </script>
 </body>
 </html>

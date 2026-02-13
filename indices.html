@@ -242,18 +242,7 @@ body {
 <script>
 const fmt = (n,d=2) => Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtPct = n => (n>=0?'+':'')+fmt(n)+'%';
-const rand = (base,pct=0.3) => base*(1+(Math.random()-0.5)*2*pct/100);
 
-// Generate 30-day history
-function genHistory(base, vol=0.5) {
-  const data = [];
-  let p = base * (1 - vol/100 * 15);
-  for (let i=0; i<30; i++) {
-    p = p * (1 + (Math.random()-0.48)*vol/100);
-    data.push(p);
-  }
-  return data;
-}
 function genLabels(n=30) {
   const labels = [];
   for (let i=n; i>0; i--) {
@@ -262,7 +251,14 @@ function genLabels(n=30) {
   }
   return labels;
 }
-const labels30d = genLabels(30);
+
+// Yahoo Finance symbol mapping
+const yahooSymbols = {
+  sp500: '%5EGSPC', nasdaq: '%5EIXIC', djia: '%5EDJI',
+  sensex: '%5EBSESN', nifty50: '%5ENSEI',
+  ftse: '%5EFTSE', nikkei: '%5EN225', dax: '%5EGDAXI',
+  hsi: '%5EHSI', sse: '000001.SS', asx200: '%5EAXJO'
+};
 
 const allIndices = [
   {id:'sp500',name:'S&P 500',flag:'🇺🇸',price:5924.50,change:0.42,region:'us',pe:'24.8',mcap:'$45.2T',vol:'3.8B',wk52h:'6,012.50',wk52l:'4,953.56',ytd:'+23.4%'},
@@ -278,10 +274,70 @@ const allIndices = [
   {id:'asx200',name:'ASX 200',flag:'🇦🇺',price:8198.30,change:0.29,region:'intl',pe:'17.6',mcap:'A$2.4T',vol:'620M',wk52h:'8,364.00',wk52l:'7,164.00',ytd:'+9.4%'},
 ];
 
+// Store chart history per index
+const chartData = {};
+const chartInstances = {};
+let isLive = false;
+
+// Fetch from Yahoo Finance with batching
+async function fetchYahooQuote(symbol) {
+  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`);
+  if (!res.ok) throw new Error('Yahoo API error');
+  const data = await res.json();
+  const result = data.chart.result[0];
+  const meta = result.meta;
+  const price = meta.regularMarketPrice;
+  const prevClose = meta.chartPreviousClose;
+  const change = ((price - prevClose) / prevClose) * 100;
+  // Extract 30-day chart data
+  const closes = result.indicators.quote[0].close.filter(v => v != null);
+  const timestamps = result.timestamp || [];
+  const labels = timestamps.map(t => new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+  return { price, prevClose, change, closes, labels };
+}
+
+async function fetchLiveData() {
+  const ids = Object.keys(yahooSymbols);
+  let anySuccess = false;
+  // Batch in groups of 3 with delays
+  for (let i = 0; i < ids.length; i += 3) {
+    const batch = ids.slice(i, i + 3);
+    const results = await Promise.allSettled(batch.map(async id => {
+      const symbol = yahooSymbols[id];
+      const data = await fetchYahooQuote(symbol);
+      const idx = allIndices.find(x => x.id === id);
+      if (idx) {
+        idx.price = data.price;
+        idx.change = data.change;
+        chartData[id] = { closes: data.closes, labels: data.labels };
+        anySuccess = true;
+      }
+    }));
+    if (i + 3 < ids.length) await new Promise(r => setTimeout(r, 300));
+  }
+  if (anySuccess) {
+    isLive = true;
+    renderAll();
+    updateDataStatus();
+  }
+}
+
+function updateDataStatus() {
+  let el = document.getElementById('dataStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'dataStatus';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;z-index:999;background:rgba(0,0,0,0.7);border:1px solid var(--border);';
+    document.body.appendChild(el);
+  }
+  el.textContent = isLive ? '🟢 Live Data' : '⚪ Simulated Data';
+}
+
 function renderIndexCard(idx, containerId) {
   const container = document.getElementById(containerId);
   const card = document.createElement('div');
   card.className = 'card';
+  card.id = 'card-' + idx.id;
   const dir = idx.change >= 0 ? 'up' : 'down';
   const color = idx.change >= 0 ? '#22c55e' : '#ef4444';
   card.innerHTML = `
@@ -308,51 +364,48 @@ function renderIndexCard(idx, containerId) {
     </div>
   `;
   container.appendChild(card);
+  drawIndexChart(idx, card.querySelector('canvas'));
+}
 
-  // Draw chart
-  const history = genHistory(idx.price, 0.6);
-  const ctx = card.querySelector('canvas').getContext('2d');
-  new Chart(ctx, {
+function drawIndexChart(idx, canvas) {
+  const color = idx.change >= 0 ? '#22c55e' : '#ef4444';
+  const bgColor = idx.change >= 0 ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)';
+  let history, labels;
+  if (chartData[idx.id]) {
+    history = chartData[idx.id].closes;
+    labels = chartData[idx.id].labels;
+  } else {
+    // Fallback: generate simulated data
+    history = [];
+    let p = idx.price * (1 - 0.6/100 * 15);
+    for (let i=0; i<30; i++) { p = p * (1 + (Math.random()-0.48)*0.6/100); history.push(p); }
+    labels = genLabels(30);
+  }
+  if (chartInstances[idx.id]) chartInstances[idx.id].destroy();
+  chartInstances[idx.id] = new Chart(canvas, {
     type: 'line',
-    data: {
-      labels: labels30d,
-      datasets: [{
-        data: history,
-        borderColor: color,
-        backgroundColor: idx.change >= 0 ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        borderWidth: 2,
-      }]
-    },
+    data: { labels, datasets: [{ data: history, borderColor: color, backgroundColor: bgColor, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }] },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: {
-        backgroundColor: '#1a1f2e',
-        borderColor: '#2a3045',
-        borderWidth: 1,
-        titleColor: '#94a3b8',
-        bodyColor: '#e2e8f0',
-        callbacks: { label: ctx => fmt(ctx.raw) }
-      }},
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { backgroundColor:'#1a1f2e', borderColor:'#2a3045', borderWidth:1, titleColor:'#94a3b8', bodyColor:'#e2e8f0', callbacks: { label: ctx => fmt(ctx.raw) } } },
       scales: {
-        x: { display: true, ticks: { color: '#64748b', maxTicksLimit: 6, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
-        y: { display: true, ticks: { color: '#64748b', font: { size: 10 }, callback: v => fmt(v,0) }, grid: { color: 'rgba(255,255,255,0.03)' } }
+        x: { display:true, ticks:{color:'#64748b',maxTicksLimit:6,font:{size:10}}, grid:{color:'rgba(255,255,255,0.03)'} },
+        y: { display:true, ticks:{color:'#64748b',font:{size:10},callback:v=>fmt(v,0)}, grid:{color:'rgba(255,255,255,0.03)'} }
       },
       interaction: { intersect: false, mode: 'index' }
     }
   });
 }
 
-// Render indices by region
-allIndices.filter(i=>i.region==='us').forEach(i=>renderIndexCard(i,'us-indices'));
-allIndices.filter(i=>i.region==='india').forEach(i=>renderIndexCard(i,'india-indices'));
-allIndices.filter(i=>i.region==='intl').forEach(i=>renderIndexCard(i,'intl-indices'));
+function renderAll() {
+  ['us-indices','india-indices','intl-indices'].forEach(id => document.getElementById(id).innerHTML = '');
+  allIndices.filter(i=>i.region==='us').forEach(i=>renderIndexCard(i,'us-indices'));
+  allIndices.filter(i=>i.region==='india').forEach(i=>renderIndexCard(i,'india-indices'));
+  allIndices.filter(i=>i.region==='intl').forEach(i=>renderIndexCard(i,'intl-indices'));
+  renderGainersLosers();
+}
 
-// Gainers / Losers
+// Gainers / Losers (static data — these are individual stocks, not available from index APIs)
 const stocks = [
   {name:'NVIDIA',ticker:'NVDA',price:142.85,change:4.82},
   {name:'Tesla',ticker:'TSLA',price:352.40,change:3.21},
@@ -373,8 +426,16 @@ function renderTable(id, data) {
       return `<tr><td>${s.name}</td><td style="color:var(--text-muted)">${s.ticker}</td><td>${typeof s.price==='string'?s.price:'$'+fmt(s.price)}</td><td class="${cls}">${fmtPct(s.change)}</td></tr>`;
     }).join('') + '</tbody>';
 }
-renderTable('gainersTable', stocks.filter(s=>s.change>0).sort((a,b)=>b.change-a.change));
-renderTable('losersTable', stocks.filter(s=>s.change<0).sort((a,b)=>a.change-b.change));
+function renderGainersLosers() {
+  renderTable('gainersTable', stocks.filter(s=>s.change>0).sort((a,b)=>b.change-a.change));
+  renderTable('losersTable', stocks.filter(s=>s.change<0).sort((a,b)=>a.change-b.change));
+}
+
+// Initial render with hardcoded data, then fetch live
+renderAll();
+updateDataStatus();
+fetchLiveData();
+setInterval(fetchLiveData, 60000);
 </script>
 </body>
 </html>

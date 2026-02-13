@@ -252,18 +252,42 @@ new Chart(document.getElementById('indiaSectorChart'), {
   }
 });
 
-// Live update from Yahoo Finance
+let isLive = false;
+
+function updateDataStatus() {
+  let el = document.getElementById('dataStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'dataStatus';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;z-index:999;background:rgba(0,0,0,0.7);border:1px solid rgba(42,48,69,1);';
+    document.body.appendChild(el);
+  }
+  el.textContent = isLive ? '🟢 Live Data' : '⚪ Simulated Data';
+}
+
+// Live update from Yahoo Finance with batching
 async function fetchLiveData() {
-  const symbols = regions.map(r => r.symbol);
-  for (const r of regions) {
-    try {
-      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(r.symbol)}?interval=1d&range=1d`);
-      const data = await res.json();
-      const meta = data.chart.result[0].meta;
-      const price = meta.regularMarketPrice;
-      const prev = meta.chartPreviousClose;
-      r.change = +((price - prev) / prev * 100).toFixed(2);
-    } catch(e) {}
+  let anySuccess = false;
+  // Batch in groups of 3 with delays
+  for (let i = 0; i < regions.length; i += 3) {
+    const batch = regions.slice(i, i + 3);
+    await Promise.allSettled(batch.map(async r => {
+      try {
+        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(r.symbol)}?interval=1d&range=1d`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const meta = data.chart.result[0].meta;
+        const price = meta.regularMarketPrice;
+        const prev = meta.chartPreviousClose;
+        r.change = +((price - prev) / prev * 100).toFixed(2);
+        anySuccess = true;
+      } catch(e) {}
+    }));
+    if (i + 3 < regions.length) await new Promise(r => setTimeout(r, 300));
+  }
+  if (anySuccess) {
+    isLive = true;
+    updateDataStatus();
   }
   // Re-render heatmap
   hmEl.innerHTML = '';
@@ -277,6 +301,7 @@ async function fetchLiveData() {
     </div>`;
   });
 }
+updateDataStatus();
 fetchLiveData();
 setInterval(fetchLiveData, 60000);
 </script>

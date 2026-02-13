@@ -157,34 +157,90 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 const fmt = (n,d=2) => Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtPct = n => (n>=0?'+':'')+fmt(n)+'%';
 
-const pairs = [
-  {id:'usdinr',name:'USD/INR',flag:'🇮🇳',price:84.38,change:0.03,high:'84.92',low:'82.10',bid:84.36,ask:84.40,featured:true},
-  {id:'eurusd',name:'EUR/USD',flag:'🇪🇺',price:1.0542,change:0.12,high:'1.1215',low:'1.0345',bid:1.0540,ask:1.0544},
-  {id:'gbpusd',name:'GBP/USD',flag:'🇬🇧',price:1.2618,change:-0.08,high:'1.3145',low:'1.2035',bid:1.2616,ask:1.2620},
-  {id:'usdjpy',name:'USD/JPY',flag:'🇯🇵',price:154.82,change:0.23,high:'161.95',low:'140.80',bid:154.80,ask:154.84},
-  {id:'usdchf',name:'USD/CHF',flag:'🇨🇭',price:0.8865,change:0.05,high:'0.9225',low:'0.8375',bid:0.8863,ask:0.8867},
-  {id:'usdcny',name:'USD/CNY',flag:'🇨🇳',price:7.2485,change:-0.11,high:'7.3680',low:'7.0825',bid:7.2480,ask:7.2490},
-  {id:'audusd',name:'AUD/USD',flag:'🇦🇺',price:0.6512,change:-0.22,high:'0.6942',low:'0.6350',bid:0.6510,ask:0.6514},
-  {id:'usdcad',name:'USD/CAD',flag:'🇨🇦',price:1.3984,change:0.14,high:'1.4125',low:'1.3180',bid:1.3982,ask:1.3986},
-];
-
-// Rates relative to USD for converter
-const toUSD = {USD:1,EUR:1/1.0542,GBP:1/1.2618,JPY:1/154.82,INR:1/84.38,CNY:1/7.2485,AUD:1/0.6512,CAD:1/1.3984,CHF:1/0.8865};
-// Invert: fromUSD
-const fromUSD = {};
-Object.keys(toUSD).forEach(k => fromUSD[k] = 1/toUSD[k]);
-
-function genHistory(base, vol=0.15) {
-  const d=[]; let p=base*(1-vol/100*15);
-  for(let i=0;i<30;i++){p=p*(1+(Math.random()-0.48)*vol/100);d.push(p);}
-  return d;
-}
 function genLabels(n=30) {
   const l=[]; for(let i=n;i>0;i--){const d=new Date();d.setDate(d.getDate()-i);l.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));}return l;
 }
+function genHistory(base, vol=0.15) {
+  const d=[]; let p=base*(1-vol/100*15);
+  for(let i=0;i<30;i++){p=p*(1+(Math.random()-0.48)*vol/100);d.push(p);}return d;
+}
 const labels30 = genLabels(30);
 
-// Featured
+const pairs = [
+  {id:'usdinr',name:'USD/INR',flag:'🇮🇳',price:84.38,change:0.03,high:'84.92',low:'82.10',bid:84.36,ask:84.40,featured:true,base:'USD',quote:'INR'},
+  {id:'eurusd',name:'EUR/USD',flag:'🇪🇺',price:1.0542,change:0.12,high:'1.1215',low:'1.0345',bid:1.0540,ask:1.0544,base:'EUR',quote:'USD'},
+  {id:'gbpusd',name:'GBP/USD',flag:'🇬🇧',price:1.2618,change:-0.08,high:'1.3145',low:'1.2035',bid:1.2616,ask:1.2620,base:'GBP',quote:'USD'},
+  {id:'usdjpy',name:'USD/JPY',flag:'🇯🇵',price:154.82,change:0.23,high:'161.95',low:'140.80',bid:154.80,ask:154.84,base:'USD',quote:'JPY'},
+  {id:'usdchf',name:'USD/CHF',flag:'🇨🇭',price:0.8865,change:0.05,high:'0.9225',low:'0.8375',bid:0.8863,ask:0.8867,base:'USD',quote:'CHF'},
+  {id:'usdcny',name:'USD/CNY',flag:'🇨🇳',price:7.2485,change:-0.11,high:'7.3680',low:'7.0825',bid:7.2480,ask:7.2490,base:'USD',quote:'CNY'},
+  {id:'audusd',name:'AUD/USD',flag:'🇦🇺',price:0.6512,change:-0.22,high:'0.6942',low:'0.6350',bid:0.6510,ask:0.6514,base:'AUD',quote:'USD'},
+  {id:'usdcad',name:'USD/CAD',flag:'🇨🇦',price:1.3984,change:0.14,high:'1.4125',low:'1.3180',bid:1.3982,ask:1.3986,base:'USD',quote:'CAD'},
+];
+
+// Live rates storage
+let liveRates = null; // Will be { USD:1, EUR:x, GBP:x, ... } (rates vs USD)
+let isLive = false;
+
+// Rates for converter (always kept up to date)
+let toUSD = {USD:1,EUR:1/1.0542,GBP:1/1.2618,JPY:1/154.82,INR:1/84.38,CNY:1/7.2485,AUD:1/0.6512,CAD:1/1.3984,CHF:1/0.8865};
+let fromUSD = {};
+function recalcFromUSD() { fromUSD = {}; Object.keys(toUSD).forEach(k => fromUSD[k] = 1/toUSD[k]); }
+recalcFromUSD();
+
+// Fetch live forex data
+async function fetchLiveData() {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    if (data.result === 'success' && data.rates) {
+      liveRates = data.rates;
+      // Update pairs with live rates
+      pairs.forEach(p => {
+        const oldPrice = p.price;
+        if (p.base === 'USD') {
+          // USD/XXX pair — direct rate
+          if (liveRates[p.quote]) {
+            p.price = liveRates[p.quote];
+          }
+        } else {
+          // XXX/USD pair — invert the rate
+          if (liveRates[p.base]) {
+            p.price = 1 / liveRates[p.base];
+          }
+        }
+        // Spread simulation (bid/ask ~0.02% spread)
+        const spread = p.price * 0.0002;
+        p.bid = p.price - spread/2;
+        p.ask = p.price + spread/2;
+      });
+      // Update converter rates
+      ['EUR','GBP','JPY','INR','CNY','AUD','CAD','CHF'].forEach(c => {
+        if (liveRates[c]) toUSD[c] = 1 / liveRates[c];
+      });
+      toUSD['USD'] = 1;
+      recalcFromUSD();
+      isLive = true;
+      renderAll();
+      convert();
+      updateDataStatus();
+    }
+  } catch(e) { console.warn('Forex API fetch failed, using defaults', e); }
+}
+
+function updateDataStatus() {
+  let el = document.getElementById('dataStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'dataStatus';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;z-index:999;background:rgba(0,0,0,0.7);border:1px solid var(--border);';
+    document.body.appendChild(el);
+  }
+  el.textContent = isLive ? '🟢 Live Data' : '⚪ Simulated Data';
+}
+
+const chartInstances = {};
+
 function renderFeatured() {
   const p = pairs.find(x=>x.featured);
   const dir = p.change >= 0 ? 'up' : 'down';
@@ -210,8 +266,9 @@ function renderFeatured() {
     </div>
     <div class="chart-container" style="height:220px;"><canvas id="chart-featured"></canvas></div>
   `;
+  if (chartInstances['featured']) chartInstances['featured'].destroy();
   const hist = genHistory(p.price, 0.1);
-  new Chart(document.getElementById('chart-featured'), {
+  chartInstances['featured'] = new Chart(document.getElementById('chart-featured'), {
     type:'line',
     data:{labels:labels30,datasets:[{data:hist,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
@@ -223,6 +280,7 @@ function renderFeatured() {
 
 function renderPairs() {
   const grid = document.getElementById('pairsGrid');
+  grid.innerHTML = '';
   pairs.filter(p=>!p.featured).forEach((p,idx) => {
     const dir = p.change>=0?'up':'down';
     const color = p.change>=0?'#22c55e':'#ef4444';
@@ -247,8 +305,9 @@ function renderPairs() {
       <div class="chart-container"><canvas id="chart-${p.id}"></canvas></div>
     `;
     grid.appendChild(card);
+    if (chartInstances[p.id]) chartInstances[p.id].destroy();
     const hist = genHistory(p.price, 0.12);
-    new Chart(card.querySelector('canvas'), {
+    chartInstances[p.id] = new Chart(card.querySelector('canvas'), {
       type:'line',
       data:{labels:labels30,datasets:[{data:hist,borderColor:color,backgroundColor:color+'18',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
@@ -274,7 +333,6 @@ window.swapCurrencies = function() {
   [f.value, t.value] = [t.value, f.value];
   convert();
 };
-convert();
 
 // Cross-rate matrix
 function renderMatrix() {
@@ -295,7 +353,7 @@ function renderMatrix() {
   document.getElementById('matrixTable').innerHTML = html;
 }
 
-// Central Bank Rates
+// Central Bank Rates (static — doesn't change frequently)
 function renderCB() {
   const banks = [
     {bank:'🇺🇸 Federal Reserve (Fed)',rate:'5.25–5.50%',last:'Jul 2023',next:'Dec 18, 2024',bias:'Dovish',note:'2 cuts expected in 2025'},
@@ -311,10 +369,19 @@ function renderCB() {
   `;
 }
 
-renderFeatured();
-renderPairs();
-renderMatrix();
-renderCB();
+function renderAll() {
+  renderFeatured();
+  renderPairs();
+  renderMatrix();
+  renderCB();
+  convert();
+}
+
+// Initial render, then fetch live
+renderAll();
+updateDataStatus();
+fetchLiveData();
+setInterval(fetchLiveData, 60000);
 </script>
 </body>
 </html>

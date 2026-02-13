@@ -163,15 +163,49 @@ function genLabels(n){const l=[];for(let i=n;i>0;i--){const d=new Date();d.setDa
 const labels30 = genLabels(30);
 
 let fgIndex = 62;
+let fgHistory = []; // Will hold 30 days of F&G values
+let vixLiveData = null; // Will hold live VIX 30-day data
+let isLive = false;
 const fgLabels = ['Extreme Fear','Fear','Neutral','Greed','Extreme Greed'];
 const fgColors = ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'];
 
-// Fetch real Fear & Greed data
+function updateDataStatus() {
+  let el = document.getElementById('dataStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'dataStatus';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;z-index:999;background:rgba(0,0,0,0.7);border:1px solid var(--border);';
+    document.body.appendChild(el);
+  }
+  el.textContent = isLive ? '🟢 Live Data' : '⚪ Simulated Data';
+}
+
+// Fetch real Fear & Greed data (30 days)
 async function fetchFG() {
   try {
-    const res = await fetch('https://api.alternative.me/fng/?limit=1');
+    const res = await fetch('https://api.alternative.me/fng/?limit=30');
     const data = await res.json();
-    if (data.data && data.data[0]) fgIndex = parseInt(data.data[0].value);
+    if (data.data && data.data.length > 0) {
+      fgIndex = parseInt(data.data[0].value);
+      // data comes newest-first, reverse for chronological
+      fgHistory = data.data.reverse().map(d => parseInt(d.value));
+      isLive = true;
+    }
+  } catch(e) {}
+}
+
+// Fetch VIX from Yahoo Finance
+async function fetchVIX() {
+  try {
+    const res = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=1mo');
+    if (!res.ok) return;
+    const data = await res.json();
+    const result = data.chart.result[0];
+    const closes = result.indicators.quote[0].close.filter(v => v != null);
+    const timestamps = result.timestamp || [];
+    const labels = timestamps.map(t => new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    vixLiveData = { closes, labels };
+    isLive = true;
   } catch(e) {}
 }
 
@@ -186,15 +220,19 @@ function renderGauge() {
   document.getElementById('fgText').style.color = fgColors[li];
 }
 
-// VIX chart
-const vixData = [];
-let v = 14.8;
-for(let i=0;i<30;i++){v=Math.max(9,Math.min(45,v+(Math.random()-0.48)*1.5));vixData.push(v);}
+// VIX chart — use live data if available, else simulated
+function getVixData() {
+  if (vixLiveData && vixLiveData.closes.length > 0) return { data: vixLiveData.closes, labels: vixLiveData.labels };
+  const vd = []; let v = 14.8;
+  for(let i=0;i<30;i++){v=Math.max(9,Math.min(45,v+(Math.random()-0.48)*1.5));vd.push(v);}
+  return { data: vd, labels: labels30 };
+}
 function renderVIX() {
+  const { data: vixData, labels: vixLabels } = getVixData();
   const currentVix = vixData[vixData.length-1];
   new Chart(document.getElementById('vixChart'),{
     type:'line',
-    data:{labels:labels30,datasets:[
+    data:{labels:vixLabels,datasets:[
       {label:'VIX',data:vixData,borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2},
       {label:'VIX Avg (20d)',data:vixData.map((_,i)=>{const sl=vixData.slice(Math.max(0,i-19),i+1);return sl.reduce((a,b)=>a+b,0)/sl.length;}),borderColor:'#64748b',borderDash:[5,5],tension:0.4,pointRadius:0,borderWidth:1},
     ]},
@@ -247,10 +285,15 @@ function renderComponents() {
 
 // Historical F&G
 function renderFGHistory() {
-  const fgHist = [];
-  let fg = 55;
-  for(let i=0;i<30;i++){fg=Math.max(5,Math.min(95,fg+(Math.random()-0.48)*5));fgHist.push(fg);}
-  fgHist[fgHist.length-1] = fgIndex;
+  let fgHist;
+  if (fgHistory.length > 0) {
+    fgHist = fgHistory;
+  } else {
+    fgHist = [];
+    let fg = 55;
+    for(let i=0;i<30;i++){fg=Math.max(5,Math.min(95,fg+(Math.random()-0.48)*5));fgHist.push(fg);}
+    fgHist[fgHist.length-1] = fgIndex;
+  }
   const colors = fgHist.map(v => {
     if(v<20) return '#ef4444'; if(v<40) return '#f97316'; if(v<60) return '#eab308'; if(v<80) return '#84cc16'; return '#22c55e';
   });
@@ -315,7 +358,9 @@ function renderHiLo() {
 }
 
 (async function init(){
-  await fetchFG();
+  updateDataStatus();
+  await Promise.allSettled([fetchFG(), fetchVIX()]);
+  updateDataStatus();
   renderGauge();
   renderVIX();
   renderComponents();
@@ -324,6 +369,13 @@ function renderHiLo() {
   renderADChart();
   renderHiLo();
 })();
+
+// Refresh every 60 seconds
+setInterval(async () => {
+  await Promise.allSettled([fetchFG(), fetchVIX()]);
+  updateDataStatus();
+  renderGauge();
+}, 60000);
 </script>
 </body>
 </html>
